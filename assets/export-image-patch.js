@@ -139,7 +139,7 @@
 
     const rows = [
       ['Montant à envoyer', fmtCurrency(q.amount, q.currency, 2), 'Mode de paiement', quoteMode(q)],
-      ['Taux appliqué', `1 ${q.currency} = ${fmtNumber(q.rate, 2)} MGA`, '', ''],
+      ['Taux appliqué', `${fmtNumber(q.rate, 2)} MGA`, `1 ${q.currency}`, ''],
       ['Montant converti', fmtMGA(q.convertedMGA, 0), 'Avant frais', ''],
       ['Frais de service & traitement', fmtMGA(q.serviceFeesMGA, 0), 'Commission E-Pay MG et frais applicables', '']
     ];
@@ -185,7 +185,7 @@
     let noteY = totalY + 195;
     ctx.fillStyle = muted;
     ctx.font = '500 22px Inter, Arial, sans-serif';
-    const defaultNote = `Le total correspond au montant converti augmenté des frais de service et de traitement applicables. Devis valable jusqu'au ${displayDate(q.validUntil)}.`;
+    const defaultNote = 'Le total correspond au montant converti augmenté des frais de service et de traitement applicables.';
     noteY += drawWrapped(ctx, q.note || defaultNote, pad, noteY, tableW, 32, 4);
 
     ctx.strokeStyle = line;
