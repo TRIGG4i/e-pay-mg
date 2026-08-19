@@ -74,10 +74,22 @@
       const table = document.querySelector(".preview-table");
       if (table) {
         table.innerHTML = `
-          <div class="preview-line"><div><span>Montant à envoyer</span><strong>${escapeHTML(fmtCurrency(q.amount,q.currency,2))}</strong></div><strong>${escapeHTML(quoteMode(q))}</strong></div>
-          <div class="preview-line"><div><span>Taux appliqué</span><strong>1 ${escapeHTML(q.currency)}</strong></div><strong>${escapeHTML(fmtNumber(q.rate,2))} MGA</strong></div>
-          <div class="preview-line"><div><span>Montant converti</span><strong>Avant frais</strong></div><strong>${escapeHTML(fmtMGA(q.convertedMGA,0))}</strong></div>
-          <div class="preview-line"><div><span>Frais de service & traitement</span><strong>Frais applicables inclus</strong></div><strong>${escapeHTML(fmtMGA(q.serviceFeesMGA,0))}</strong></div>`;
+          <div class="preview-line">
+            <div><span>Montant à envoyer</span><small>${escapeHTML(quoteMode(q))}</small></div>
+            <strong>${escapeHTML(fmtCurrency(q.amount,q.currency,2))}</strong>
+          </div>
+          <div class="preview-line">
+            <div><span>Taux appliqué</span></div>
+            <strong>1 ${escapeHTML(q.currency)} = ${escapeHTML(fmtNumber(q.rate,2))} MGA</strong>
+          </div>
+          <div class="preview-line">
+            <div><span>Montant converti</span><small>Avant frais</small></div>
+            <strong>${escapeHTML(fmtMGA(q.convertedMGA,0))}</strong>
+          </div>
+          <div class="preview-line">
+            <div><span>Frais de service & traitement</span><small>Commission E-Pay MG et frais applicables</small></div>
+            <strong>${escapeHTML(fmtMGA(q.serviceFeesMGA,0))}</strong>
+          </div>`;
       }
       $("previewTotal").textContent = fmtMGA(q.totalMGA,0);
       $("previewNote").textContent = q.note || `Le total correspond au montant converti augmenté des frais de service et de traitement applicables. Devis valable jusqu'au ${displayDate(q.validUntil)}.`;
