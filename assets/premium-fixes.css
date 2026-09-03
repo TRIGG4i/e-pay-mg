@@ -67,3 +67,288 @@
   .sheet{max-height:calc(100dvh - 32px);padding:10px 16px 22px}
   .quote-preview{padding:21px}
 }
+
+
+/* ===== Premium density + motion pass v3 =====
+   Goal: make the UI feel higher-density, calmer and more native without
+   scaling the whole document (which would blur text and break hit targets). */
+:root{
+  --motion-fast:140ms;
+  --motion-med:260ms;
+  --motion-slow:360ms;
+  --ease-premium:cubic-bezier(.22,.78,.22,1);
+  --ease-spring:cubic-bezier(.2,1,.28,1);
+}
+
+html{scroll-behavior:smooth}
+body{overflow-x:hidden}
+
+button,
+.rate-option,
+.segment,
+.nav-btn,
+.icon-button,
+.secondary,
+.action-btn,
+.mini-btn,
+.quote-item{
+  transition:
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-med) var(--ease-premium),
+    background-color var(--motion-med) var(--ease-premium),
+    border-color var(--motion-med) var(--ease-premium),
+    color var(--motion-med) var(--ease-premium),
+    opacity var(--motion-fast) ease;
+}
+button:active,
+.rate-option:active,
+.segment:active,
+.nav-btn:active,
+.icon-button:active,
+.secondary:active,
+.action-btn:active,
+.mini-btn:active{transform:scale(.965)}
+
+.card,
+.rate-switch,
+.quote-preview,
+.form-card{
+  backdrop-filter:blur(18px) saturate(118%);
+  -webkit-backdrop-filter:blur(18px) saturate(118%);
+}
+
+.card{
+  box-shadow:
+    0 18px 45px rgba(15,18,28,.055),
+    inset 0 1px 0 rgba(255,255,255,.82);
+}
+
+.result-card{
+  box-shadow:
+    0 18px 42px rgba(7,9,14,.13),
+    inset 0 1px 0 rgba(255,255,255,.055);
+}
+
+.icon-button:hover,
+.secondary:hover,
+.action-btn.light:hover{box-shadow:0 10px 26px rgba(15,18,28,.09)}
+
+#refreshRates:disabled .icon{animation:premiumSpin .9s linear infinite}
+@keyframes premiumSpin{to{transform:rotate(360deg)}}
+
+/* Floating dock: real moving selection capsule instead of three independent flashes. */
+.dock{position:relative;isolation:isolate}
+.dock-indicator{
+  position:absolute;
+  top:7px;
+  bottom:7px;
+  left:0;
+  width:0;
+  border-radius:21px;
+  background:linear-gradient(180deg,#fff 0%,#f8f9fb 100%);
+  box-shadow:
+    0 7px 18px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.9);
+  z-index:0;
+  pointer-events:none;
+  transition:
+    transform var(--motion-slow) var(--ease-spring),
+    width var(--motion-slow) var(--ease-spring),
+    opacity var(--motion-fast) ease;
+}
+.nav-btn{position:relative;z-index:1}
+.nav-btn.active{background:transparent!important;box-shadow:none!important}
+.nav-btn .icon{transition:transform var(--motion-med) var(--ease-spring)}
+.nav-btn.active .icon{transform:translateY(-1px) scale(1.04)}
+
+/* Same-document page transition. Dock stays still while content moves. */
+.view.active{
+  animation:none!important;
+  view-transition-name:epay-page;
+}
+::view-transition-group(epay-page){animation-duration:280ms;animation-timing-function:var(--ease-premium)}
+html[data-nav-direction="forward"]::view-transition-old(epay-page){
+  animation:epayOldForward 240ms var(--ease-premium) both;
+}
+html[data-nav-direction="forward"]::view-transition-new(epay-page){
+  animation:epayNewForward 300ms var(--ease-premium) both;
+}
+html[data-nav-direction="back"]::view-transition-old(epay-page){
+  animation:epayOldBack 240ms var(--ease-premium) both;
+}
+html[data-nav-direction="back"]::view-transition-new(epay-page){
+  animation:epayNewBack 300ms var(--ease-premium) both;
+}
+@keyframes epayOldForward{to{opacity:0;transform:translateX(-14px) scale(.992);filter:blur(1.5px)}}
+@keyframes epayNewForward{from{opacity:0;transform:translateX(18px) scale(.988);filter:blur(2px)}}
+@keyframes epayOldBack{to{opacity:0;transform:translateX(14px) scale(.992);filter:blur(1.5px)}}
+@keyframes epayNewBack{from{opacity:0;transform:translateX(-18px) scale(.988);filter:blur(2px)}}
+
+.motion-fallback-in{animation:epayFallbackIn 280ms var(--ease-premium) both!important}
+@keyframes epayFallbackIn{from{opacity:0;transform:translateY(7px) scale(.994)}to{opacity:1;transform:none}}
+
+/* Quote sheet: premium present/dismiss movement. */
+.sheet-backdrop.open{animation:premiumBackdropIn 220ms ease-out both}
+.sheet-backdrop.open .sheet{animation:premiumSheetIn 380ms var(--ease-spring) both}
+.sheet-backdrop.closing{display:flex!important;animation:premiumBackdropOut 180ms ease-in both}
+.sheet-backdrop.closing .sheet{animation:premiumSheetOut 190ms cubic-bezier(.4,0,.8,.2) both}
+@keyframes premiumBackdropIn{from{background:rgba(7,9,13,0);backdrop-filter:blur(0)}}
+@keyframes premiumBackdropOut{to{background:rgba(7,9,13,0);backdrop-filter:blur(0)}}
+@keyframes premiumSheetIn{from{opacity:.35;transform:translateY(34px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes premiumSheetOut{to{opacity:0;transform:translateY(28px) scale(.99)}}
+
+/* High-density mobile pass. No transform scaling: every metric is redrawn smaller. */
+@media(max-width:699px){
+  :root{--dock-h:62px;--r-xxl:24px;--r-xl:21px;--r-lg:17px;--r-md:14px}
+
+  .app-shell{
+    width:min(100%,620px);
+    padding:11px 12px calc(var(--dock-h) + 24px + env(safe-area-inset-bottom));
+  }
+
+  .topbar{gap:12px;padding:2px 1px 11px}
+  .brand-wrap{gap:9px}
+  .brand-mark{width:34px;height:34px}
+  .brand-copy strong{font-size:15px}
+  .brand-copy span{margin-top:3px;font-size:9.8px}
+  .icon-button{width:36px;height:36px;border-radius:13px}
+  .icon{width:20px;height:20px}
+  .icon.sm{width:16px;height:16px}
+  .icon.lg{width:22px;height:22px}
+
+  .section-eyebrow{margin:3px 3px 7px;font-size:9.5px;letter-spacing:.11em}
+
+  .rate-switch{gap:4px;padding:4px;border-radius:18px;margin-bottom:10px}
+  .rate-option{border-radius:14px;padding:8px 9px;gap:7px}
+  .rate-code{font-size:11.5px;gap:6px}
+  .currency-dot{width:8px;height:8px}
+  .rate-number{font-size:10.3px}
+
+  .card{border-radius:24px;padding:14px;margin-bottom:10px}
+  .card-head{gap:10px;margin-bottom:13px}
+  .card-head h2{font-size:15.5px}
+  .card-head p{margin-top:2px;font-size:10px}
+  .chip{padding:6px 8px;font-size:9.8px}
+
+  .field-label{margin-bottom:6px;font-size:9.7px}
+  .amount-box{min-height:58px;border-radius:17px;gap:10px;padding:9px 12px}
+  .amount-currency{font-size:12px;gap:6px}
+  .amount-input{font-size:25px;letter-spacing:-.04em}
+
+  .segment-wrap{margin-top:12px}
+  .segmented{padding:3px;border-radius:15px}
+  .segment{border-radius:12px;padding:9px 6px;font-size:10.3px}
+
+  .result-card{margin-top:12px;border-radius:21px;padding:14px}
+  .result-card::after{width:125px;height:125px;right:-67px;top:-68px}
+  .result-label{font-size:9.8px}
+  .result-total{gap:6px;margin-top:5px}
+  .result-total strong{font-size:27px}
+  .result-total span{font-size:11px}
+  .result-meta{gap:7px;margin-top:14px}
+  .meta-item{padding-top:8px}
+  .meta-item span{font-size:8.6px}
+  .meta-item strong{margin-top:3px;font-size:10px}
+  .primary{border-radius:14px;padding:11px 13px;margin-top:12px;font-size:11.5px}
+  .inline-status{font-size:9.3px;margin-top:9px}
+
+  .disclosure{margin-top:10px;border-radius:17px}
+  .disclosure summary{padding:11px 12px;font-size:10.8px}
+  .disclosure .disc-body{padding:0 12px 12px}
+  .budget-row{border-radius:14px;padding:8px 10px}
+  .budget-row input{font-size:16px}
+  .budget-results{gap:7px;margin-top:8px}
+  .budget-result{border-radius:13px;padding:8px}
+  .budget-result span{font-size:8.6px}
+  .budget-result strong{font-size:10.5px}
+  .profit-row{gap:7px;margin-top:9px}
+  .kpi{border-radius:15px;padding:10px}
+  .kpi span{font-size:8.4px}
+  .kpi strong{margin-top:5px;font-size:13px}
+  .detail-list{margin-top:8px}
+  .detail-row{padding:10px 2px;font-size:10.2px}
+
+  .quotes-empty{padding:27px 16px 22px}
+  .empty-orb{width:48px;height:48px;border-radius:16px;margin-bottom:10px}
+  .quotes-empty h3{font-size:14px}
+  .quotes-empty p{font-size:10.2px}
+  .secondary{border-radius:14px;padding:10px 12px;font-size:10.8px}
+  .quote-list{gap:7px}
+  .quote-item{border-radius:17px;padding:10px;grid-template-columns:35px 1fr auto;gap:9px}
+  .quote-icon{width:35px;height:35px;border-radius:12px}
+  .quote-main strong{font-size:11px}
+  .quote-main span{font-size:9px;margin-top:3px}
+  .quote-amount{font-size:10.2px}
+  .quote-actions{gap:6px;margin-top:6px}
+  .mini-btn{border-radius:9px;padding:6px}
+
+  .dock-wrap{
+    bottom:calc(8px + env(safe-area-inset-bottom));
+    width:min(calc(100% - 24px),530px);
+  }
+  .dock{height:var(--dock-h);padding:6px;border-radius:23px;gap:4px}
+  .dock-indicator{top:6px;bottom:6px;border-radius:17px}
+  .nav-btn{border-radius:17px;gap:6px;padding:0 8px}
+  .nav-btn span{font-size:9.8px}
+
+  .sheet-backdrop{padding-top:5px}
+  .sheet{
+    max-height:calc(100dvh - 5px);
+    border-radius:25px 25px 0 0;
+    padding:7px 11px calc(19px + env(safe-area-inset-bottom));
+  }
+  .grabber{width:36px;height:4px;margin-bottom:8px}
+  .sheet-head{margin-bottom:9px;padding-bottom:7px}
+  .sheet-head h2{font-size:17px}
+  .sheet-head p{font-size:9.3px}
+  .close-btn{width:34px;height:34px;border-radius:12px}
+  .form-card{border-radius:18px;padding:10px;margin-bottom:8px}
+  .form-grid{gap:7px}
+  .form-field label{font-size:8.4px;margin-bottom:5px}
+  .form-field input,.form-field textarea{border-radius:12px;padding:9px 10px;font-size:10.5px}
+  .form-field textarea{min-height:54px}
+  .preview-label{margin:10px 3px 7px;font-size:8.6px}
+  .quote-preview{border-radius:20px;padding:14px}
+  .preview-brand svg{width:29px;height:29px}
+  .preview-brand strong{font-size:11.8px}
+  .preview-brand span{font-size:8.4px}
+  .preview-ref strong{font-size:9.8px}
+  .preview-ref span{font-size:8.4px}
+  .preview-client{margin-top:12px;padding-top:10px}
+  .preview-client span{font-size:8.5px}
+  .preview-client strong{font-size:10.8px}
+  .preview-table{margin-top:10px;border-radius:15px}
+  .preview-line{
+    grid-template-columns:minmax(0,1fr) minmax(120px,auto)!important;
+    column-gap:9px!important;
+    padding:10px 10px!important;
+  }
+  .preview-line span,.preview-line small{font-size:8.3px!important}
+  .preview-line>strong{font-size:9.8px!important}
+  .preview-total{margin-top:9px;padding:11px 12px;border-radius:15px}
+  .preview-total span{font-size:8.8px}
+  .preview-total strong{font-size:15px}
+  .preview-note{margin-top:8px;font-size:8.5px;line-height:1.45}
+  .sheet-actions{gap:7px!important;margin-top:8px!important}
+  .action-btn{min-height:42px!important;border-radius:14px;padding:10px 8px;font-size:10.5px}
+}
+
+@media(max-width:360px){
+  .app-shell{padding-left:10px;padding-right:10px}
+  .amount-input{font-size:23px}
+  .result-total strong{font-size:25px}
+  .preview-line{
+    grid-template-columns:minmax(0,1fr) minmax(108px,auto)!important;
+    column-gap:7px!important;
+  }
+  .preview-line>strong{font-size:9.1px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+    scroll-behavior:auto!important;
+  }
+}
