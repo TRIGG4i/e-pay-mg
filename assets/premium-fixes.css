@@ -674,3 +674,70 @@ button:active,
     margin-top:12px;
   }
 }
+
+
+/* ===== Quote sheet repair: restore clean composition after dark-theme rollout ===== */
+.sheet{
+  scroll-behavior:auto!important;
+}
+.sheet-head{
+  position:static!important;
+  top:auto!important;
+  z-index:auto!important;
+  background:transparent!important;
+  margin-bottom:10px!important;
+  padding:2px 2px 6px!important;
+}
+
+.preview-line>div>strong{
+  text-align:left!important;
+  align-self:flex-start!important;
+  width:auto!important;
+}
+
+.preview-line>strong{
+  text-align:right!important;
+  justify-self:end!important;
+}
+
+/* Primary quote actions keep proper contrast in both themes. */
+html[data-theme="dark"] .action-btn.dark{
+  background:#f5f6f8!important;
+  color:#0b0d12!important;
+  border:1px solid #f5f6f8!important;
+}
+html[data-theme="dark"] .action-btn.light{
+  background:#171c25!important;
+  color:#f4f6f9!important;
+  border-color:#303745!important;
+}
+html[data-theme="dark"] .action-btn.dark .icon,
+html[data-theme="dark"] .action-btn.light .icon{
+  color:currentColor!important;
+}
+
+/* Keep the quote preview visually distinct from the surrounding sheet. */
+html[data-theme="dark"] .quote-preview{
+  background:#151a23!important;
+  border-color:#303744!important;
+  box-shadow:0 12px 30px rgba(0,0,0,.18)!important;
+}
+html[data-theme="dark"] .preview-table{
+  background:#151a23!important;
+  border-color:#303744!important;
+}
+html[data-theme="dark"] .preview-line{
+  border-color:#303744!important;
+}
+html[data-theme="dark"] .preview-client{
+  border-color:#303744!important;
+}
+
+/* Make the 2x2 action grid read as one balanced control group. */
+.sheet-actions{
+  align-items:stretch!important;
+}
+.action-btn{
+  min-width:0!important;
+  white-space:nowrap;
+}
