@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "E-Pay MG",
+  "short_name": "E-Pay MG",
+  "description": "Calculateur interne et générateur de devis E-Pay MG.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#0d1016",
+  "theme_color": "#0d1016",
+  "icons": [
+    {
+      "src": "assets/epay-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
