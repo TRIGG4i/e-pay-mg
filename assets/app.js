@@ -22,5 +22,6 @@
     .then(() => loadScript("assets/export-image-patch.js"))
     .then(() => loadScript("assets/theme-patch.js"))
     .then(() => loadScript("assets/motion-polish.js"))
+    .then(() => loadScript("assets/quote-sheet-fix.js"))
     .catch((error) => console.error("E-Pay MG :", error));
 })();
