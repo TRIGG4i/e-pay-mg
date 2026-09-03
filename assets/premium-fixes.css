@@ -421,8 +421,6 @@ button:active,
 .theme-toggle .icon{transition:transform 160ms cubic-bezier(.2,.72,.2,1)}
 .theme-toggle:active .icon{transform:rotate(16deg) scale(.94)}
 
-.internal-debit-wrap{margin-top:10px}
-.internal-debit-segmented .segment{font-size:10.2px}
 #internalDebitModeHint{font-variant-numeric:tabular-nums}
 
 @media screen{
@@ -551,5 +549,128 @@ button:active,
 
 @media(max-width:699px){
   .top-actions{gap:6px}
-  .internal-debit-wrap{margin-top:9px}
+}
+
+
+/* ===== Cross-page alignment pass =====
+   Shared landmarks in Calcul and Interne use exactly the same geometry. */
+#clientView .card-head,
+#internalView .card-head{
+  min-height:44px;
+  align-items:flex-start;
+}
+#clientView .card-head>div:first-child,
+#internalView .card-head>div:first-child{
+  min-width:0;
+}
+#clientView .card-head h2,
+#internalView .card-head h2{
+  line-height:1.08;
+}
+#clientView .card-head p,
+#internalView .card-head p{
+  line-height:1.25;
+  min-height:1.25em;
+}
+
+#clientView>.section-eyebrow,
+#internalView>.section-eyebrow{
+  line-height:1.2;
+}
+
+#clientView .field-label,
+#internalView .field-label{
+  min-height:14px;
+  line-height:1.2;
+  align-items:center;
+}
+
+#clientView .amount-box,
+#internalView .amount-box{
+  height:72px;
+  min-height:72px;
+}
+
+#clientView .segment-wrap,
+#internalDebitModeWrap{
+  margin-top:16px;
+}
+
+#clientView .segment-wrap>.field-label,
+#internalDebitModeWrap>.field-label{
+  margin-bottom:8px;
+}
+
+#clientView .segmented,
+#internalDebitModeWrap .segmented{
+  height:46px;
+  min-height:46px;
+}
+
+#clientView .segment,
+#internalDebitModeWrap .segment{
+  font-size:11.5px;
+  line-height:1.2;
+}
+
+#clientView .result-card,
+#internalView .result-card{
+  margin-top:16px;
+}
+
+/* Never animate or translate the page/card itself when changing tabs. */
+.view,
+.view.active,
+#clientView>.card,
+#internalView>.card,
+#quotesView>.card{
+  transform:none!important;
+}
+.view.active{
+  animation:none!important;
+  will-change:auto!important;
+}
+
+@media(max-width:699px){
+  #clientView .card-head,
+  #internalView .card-head{
+    min-height:37px;
+  }
+
+  #clientView .field-label,
+  #internalView .field-label{
+    min-height:12px;
+  }
+
+  #clientView .amount-box,
+  #internalView .amount-box{
+    height:58px;
+    min-height:58px;
+  }
+
+  #clientView .segment-wrap,
+  #internalDebitModeWrap{
+    margin-top:12px;
+  }
+
+  #clientView .segment-wrap>.field-label,
+  #internalDebitModeWrap>.field-label{
+    margin-bottom:6px;
+  }
+
+  #clientView .segmented,
+  #internalDebitModeWrap .segmented{
+    height:40px;
+    min-height:40px;
+  }
+
+  #clientView .segment,
+  #internalDebitModeWrap .segment{
+    font-size:10.3px;
+  }
+
+  #clientView .result-card,
+  #internalView .result-card{
+    margin-top:12px;
+  }
 }
