@@ -106,6 +106,7 @@
 
   navButtons.forEach((button) => {
     button.addEventListener("pointerdown", () => {
+      if (typeof button.animate !== "function") return;
       button.animate(
         [
           { transform: "scale(1)" },
@@ -121,7 +122,7 @@
   document.addEventListener("pointerdown", (event) => {
     if (reducedMotion.matches) return;
     const target = event.target.closest(interactiveSelector);
-    if (!target || target.closest(".dock")) return;
+    if (!target || target.closest(".dock") || typeof target.animate !== "function") return;
     target.animate(
       [
         { transform: "scale(1)" },
