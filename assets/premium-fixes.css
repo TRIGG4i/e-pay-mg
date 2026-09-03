@@ -74,8 +74,8 @@ button:active,
   margin:-18px -16px 0;
   padding:18px 16px 0;
   background:linear-gradient(180deg,#f8f9fb 0%,#f4f5f7 100%);
-  border-bottom:1px solid rgba(223,226,231,.78);
-  box-shadow:0 8px 22px rgba(15,18,28,.035);
+  border-bottom:0;
+  box-shadow:none;
 }
 
 .sticky-head .rate-switch{margin-bottom:10px}
@@ -378,8 +378,8 @@ button:active,
 
   html[data-theme="dark"] .sticky-head{
     background:linear-gradient(180deg,#10141b 0%,#0d1016 100%);
-    border-bottom-color:#252b35;
-    box-shadow:0 8px 22px rgba(0,0,0,.16);
+    border-bottom-color:transparent;
+    box-shadow:none;
   }
 
   html[data-theme="dark"] .card,
