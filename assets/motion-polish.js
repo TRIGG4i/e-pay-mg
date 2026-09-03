@@ -2,12 +2,10 @@
   if (typeof setView !== "function" || typeof $ !== "function") return;
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const viewOrder = ["client", "internal", "quotes"];
   const baseSetView = setView;
   const baseCloseQuote = typeof closeQuote === "function" ? closeQuote : null;
   const dock = document.querySelector(".dock");
   let indicator = null;
-  let pageAnimation = null;
   let closingQuote = false;
 
   function ensureIndicator(){
@@ -35,43 +33,14 @@
     }
   }
 
-  function animateActiveView(fromView, toView){
-    if (reducedMotion.matches) return;
-    const activeView = document.querySelector(".view.active");
-    if (!activeView || typeof activeView.animate !== "function") return;
-
-    pageAnimation?.cancel?.();
-    const fromIndex = Math.max(0, viewOrder.indexOf(fromView));
-    const toIndex = Math.max(0, viewOrder.indexOf(toView));
-    const direction = toIndex >= fromIndex ? 1 : -1;
-
-    pageAnimation = activeView.animate(
-      [
-        { opacity: 0.74, transform: `translate3d(${direction * 8}px,0,0)` },
-        { opacity: 1, transform: "translate3d(0,0,0)" }
-      ],
-      {
-        duration: 155,
-        easing: "cubic-bezier(.2,.72,.2,1)",
-        fill: "both"
-      }
-    );
-    pageAnimation.finished.finally(() => {
-      pageAnimation = null;
-    }).catch(() => {});
-  }
-
-  setView = function smoothSetView(view){
-    const current = typeof state !== "undefined" ? state.view : null;
-    if (!view || current === view) {
-      baseSetView(view);
-      requestAnimationFrame(() => syncIndicator());
-      return;
-    }
-
+  /*
+   * Intentionally no page/card movement here.
+   * Navigation swaps content immediately and only the dock indicator moves.
+   * This avoids vestibular discomfort and keeps the visual landmarks fixed.
+   */
+  setView = function stableSetView(view){
     baseSetView(view);
     requestAnimationFrame(() => syncIndicator());
-    animateActiveView(current, view);
   };
 
   if (baseCloseQuote) {
