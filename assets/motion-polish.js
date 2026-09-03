@@ -5,16 +5,14 @@
   const viewOrder = ["client", "internal", "quotes"];
   const baseSetView = setView;
   const baseCloseQuote = typeof closeQuote === "function" ? closeQuote : null;
-  let navTransition = null;
-  let closingQuote = false;
-
   const dock = document.querySelector(".dock");
-  const navButtons = Array.from(document.querySelectorAll(".nav-btn"));
   let indicator = null;
+  let pageAnimation = null;
+  let closingQuote = false;
 
   function ensureIndicator(){
     if (!dock) return null;
-    if (indicator && indicator.isConnected) return indicator;
+    if (indicator?.isConnected) return indicator;
     indicator = document.createElement("div");
     indicator.className = "dock-indicator";
     indicator.setAttribute("aria-hidden", "true");
@@ -25,30 +23,45 @@
   function syncIndicator(immediate = false){
     const pill = ensureIndicator();
     const active = document.querySelector(".nav-btn.active");
-    if (!pill || !active || !dock) return;
+    if (!pill || !active) return;
 
-    if (immediate) pill.style.transition = "none";
+    if (immediate) pill.classList.add("no-motion");
     pill.style.width = `${active.offsetWidth}px`;
-    pill.style.transform = `translateX(${active.offsetLeft}px)`;
+    pill.style.transform = `translate3d(${active.offsetLeft}px,0,0)`;
     pill.style.opacity = "1";
 
     if (immediate) {
-      requestAnimationFrame(() => {
-        pill.style.transition = "";
-      });
+      requestAnimationFrame(() => pill.classList.remove("no-motion"));
     }
   }
 
-  function fallbackEntrance(){
+  function animateActiveView(fromView, toView){
+    if (reducedMotion.matches) return;
     const activeView = document.querySelector(".view.active");
-    if (!activeView) return;
-    activeView.classList.remove("motion-fallback-in");
-    void activeView.offsetWidth;
-    activeView.classList.add("motion-fallback-in");
-    window.setTimeout(() => activeView.classList.remove("motion-fallback-in"), 320);
+    if (!activeView || typeof activeView.animate !== "function") return;
+
+    pageAnimation?.cancel?.();
+    const fromIndex = Math.max(0, viewOrder.indexOf(fromView));
+    const toIndex = Math.max(0, viewOrder.indexOf(toView));
+    const direction = toIndex >= fromIndex ? 1 : -1;
+
+    pageAnimation = activeView.animate(
+      [
+        { opacity: 0.74, transform: `translate3d(${direction * 8}px,0,0)` },
+        { opacity: 1, transform: "translate3d(0,0,0)" }
+      ],
+      {
+        duration: 155,
+        easing: "cubic-bezier(.2,.72,.2,1)",
+        fill: "both"
+      }
+    );
+    pageAnimation.finished.finally(() => {
+      pageAnimation = null;
+    }).catch(() => {});
   }
 
-  setView = function premiumSetView(view){
+  setView = function smoothSetView(view){
     const current = typeof state !== "undefined" ? state.view : null;
     if (!view || current === view) {
       baseSetView(view);
@@ -56,38 +69,13 @@
       return;
     }
 
-    const from = Math.max(0, viewOrder.indexOf(current));
-    const to = Math.max(0, viewOrder.indexOf(view));
-    document.documentElement.dataset.navDirection = to >= from ? "forward" : "back";
-
-    const commit = () => {
-      baseSetView(view);
-      requestAnimationFrame(() => syncIndicator());
-    };
-
-    if (document.startViewTransition && !reducedMotion.matches) {
-      try {
-        navTransition?.skipTransition?.();
-        navTransition = document.startViewTransition(commit);
-        navTransition.finished.finally(() => {
-          navTransition = null;
-          delete document.documentElement.dataset.navDirection;
-        });
-      } catch {
-        commit();
-        fallbackEntrance();
-      }
-    } else {
-      commit();
-      fallbackEntrance();
-      window.setTimeout(() => {
-        delete document.documentElement.dataset.navDirection;
-      }, 320);
-    }
+    baseSetView(view);
+    requestAnimationFrame(() => syncIndicator());
+    animateActiveView(current, view);
   };
 
   if (baseCloseQuote) {
-    closeQuote = function premiumCloseQuote(){
+    closeQuote = function smoothCloseQuote(){
       const sheet = $("quoteSheet");
       if (!sheet?.classList.contains("open") || reducedMotion.matches) {
         baseCloseQuote();
@@ -100,44 +88,15 @@
         baseCloseQuote();
         sheet.classList.remove("closing");
         closingQuote = false;
-      }, 185);
+      }, 145);
     };
   }
-
-  navButtons.forEach((button) => {
-    button.addEventListener("pointerdown", () => {
-      if (typeof button.animate !== "function") return;
-      button.animate(
-        [
-          { transform: "scale(1)" },
-          { transform: "scale(.955)" },
-          { transform: "scale(1)" }
-        ],
-        { duration: 180, easing: "cubic-bezier(.2,.8,.2,1)" }
-      );
-    }, { passive: true });
-  });
-
-  const interactiveSelector = ".rate-option,.segment,.primary,.secondary,.action-btn,.icon-button,.quote-item,.mini-btn";
-  document.addEventListener("pointerdown", (event) => {
-    if (reducedMotion.matches) return;
-    const target = event.target.closest(interactiveSelector);
-    if (!target || target.closest(".dock") || typeof target.animate !== "function") return;
-    target.animate(
-      [
-        { transform: "scale(1)" },
-        { transform: "scale(.982)" },
-        { transform: "scale(1)" }
-      ],
-      { duration: 170, easing: "cubic-bezier(.2,.8,.2,1)" }
-    );
-  }, { passive: true });
 
   if ("ResizeObserver" in window && dock) {
     new ResizeObserver(() => syncIndicator(true)).observe(dock);
   }
   window.addEventListener("orientationchange", () => {
-    window.setTimeout(() => syncIndicator(true), 120);
+    window.setTimeout(() => syncIndicator(true), 100);
   }, { passive: true });
   window.addEventListener("resize", () => syncIndicator(true), { passive: true });
 
