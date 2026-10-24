@@ -68,7 +68,7 @@
     el('clientsList').innerHTML = rows.length ? '<div class="quote-list">' + rows.map(({ c, s }) => '<div class="quote-item" data-open-client="' + esc(c.id) + '">'
       + '<div class="quote-icon client-initials">' + esc(initials(c.name)) + '</div>'
       + '<div class="quote-main"><strong>' + esc(c.name) + '</strong><span>' + esc([c.phone, `${s.ops.length} opération(s)`, `${s.quotes.length} devis`].filter(Boolean).join(' · ')) + '</span>'
-      + (s.due ? '<em class="quote-tag">Reste ' + esc(fmtMGA(s.due, 0)) + '</em>' : '') + '</div>'
+      + (s.due ? '<em class="quote-tag">À encaisser ' + esc(fmtMGA(s.due, 0)) + '</em>' : '') + '</div>'
       + '<div class="quote-amount">' + (s.paid ? esc(fmtMGA(s.paid, 0)) : '') + '</div></div>').join('') + '</div>'
       : '<p class="invoice-empty">' + (clients.length ? 'Aucun client ne correspond.' : 'Les clients sont ajoutés automatiquement avec leurs devis et opérations.') + '</p>';
     const n = el('suiviClients'); if (n) n.textContent = clients.length ? ` · ${clients.length}` : '';
@@ -84,7 +84,7 @@
       ...s.ops.map(o => row('op', o.id, o.number, `${fmtCurrency(Number(o.amount) || 0, o.currency, 0)}${o.beneficiary?.name ? ` → ${o.beneficiary.name}` : ''} · ${O.step(o.status).label}`, fmtMGA(O.figures(o).total, 0))),
       ...s.quotes.map(q => row('quote', q.id, q.number, `Devis · ${fmtCurrency(q.amount, q.currency, 0)} · ${displayDate(q.ratedAt || q.createdAt)}${q.operationId ? ' · opération' : ''}`, fmtMGA(q.totalMGA, 0)))
     ];
-    const head = '<div class="order-figures client-figures"><div><span>Payé</span><strong>' + esc(fmtNumber(s.paid, 0)) + '</strong></div><div><span>Reste</span><strong class="' + (s.due ? 'due' : 'ok') + '">' + esc(fmtNumber(s.due, 0)) + '</strong></div><div><span>Envoyé</span><strong>' + esc(vol || '—') + '</strong></div></div>';
+    const head = '<div class="order-figures client-figures"><div><span>Payé</span><strong>' + esc(fmtNumber(s.paid, 0)) + '</strong></div><div><span>À encaisser</span><strong class="' + (s.due ? 'due' : 'ok') + '">' + esc(fmtNumber(s.due, 0)) + '</strong></div><div><span>Envoyé</span><strong>' + esc(vol || '—') + '</strong></div></div>';
     return head + (parts.length ? '<h3 class="invoice-h3">Historique</h3><div class="history-list">' + parts.join('') + '</div>' : '<p class="field-hint">Aucun devis ni opération pour l’instant.</p>');
   }
   function openClient(id = null, prefill = null) {

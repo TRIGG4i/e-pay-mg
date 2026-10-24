@@ -34,9 +34,25 @@ test('coût interne : carte étrangère (recharge 1 %) et débit direct', () => 
   const rate = P.ownerRate(5150.21, D);
   const foreign = P.owner(1000, rate, 'foreign', D), direct = P.owner(1000, rate, 'direct', D);
   assert.ok(foreign.debitMGA > direct.debitMGA);
-  assert.equal(Math.round(direct.debitMGA), Math.round(1000 * rate + D.ownerFixedFeeMGA));
+  assert.equal(direct.debits, 2); // 5 330 467 MGA > 4 999 000 : deux débits de carte
+  assert.equal(Math.round(direct.debitMGA), Math.round(1000 * rate + 2 * D.ownerFixedFeeMGA));
   const profit = P.client(1000, P.clientRate(5150.21, D), 'bank', D).total - foreign.debitMGA;
   assert.ok(profit > 500000 && profit < 600000, `bénéfice ${profit}`);
+});
+
+test('plafond de carte : 5 000 000 MGA par débit, frais fixe de 1 000 compris', () => {
+  const one = P.owner(4999000, 1, 'direct', D);
+  assert.deepEqual([one.debits, one.fixedFeeMGA, one.debitMGA], [1, 1000, 5000000]);
+  const two = P.owner(4999001, 1, 'direct', D);
+  assert.deepEqual([two.debits, two.fixedFeeMGA, two.lastDebitMGA, two.debitMGA], [2, 2000, 1001, 5001001]);
+  const big = P.owner(16000000, 1, 'direct', D); // 4 × 4 999 000 couvrent 19 996 000
+  assert.deepEqual([big.debits, big.fixedFeeMGA, big.debitMGA], [4, 4000, 16004000]);
+  assert.equal(big.perDebitMGA * 3 + big.lastDebitMGA - big.feePerDebitMGA, 16000000);
+  const free = P.owner(16000000, 1, 'direct', { ...D, ownerCardLimitMGA: 0 });
+  assert.deepEqual([free.debits, free.debitMGA], [1, 16001000]);
+  // 1 000 EUR par carte étrangère : 5 384 310 MGA achetés, donc deux débits (5 000 000 + 386 310).
+  const eur = P.owner(1000, P.ownerRate(5150.21, D), 'foreign', D);
+  assert.deepEqual([eur.debits, Math.round(eur.lastDebitMGA), Math.round(eur.debitMGA)], [2, 386310, 5386310]);
 });
 
 test('tarifs personnalisés pris en compte', () => {

@@ -54,9 +54,9 @@
     for (const o of d.open) {
       const f = O.figures(o), age = EpayUI.daysSince(since(o)), who = o.client || o.number, amount = fmtCurrency(Number(o.amount) || 0, o.currency, 0);
       if (o.status === 'paye') items.push({ rank: 1, age, kind: 'op', id: o.id, title: `Transfert à envoyer · ${who}`, sub: `${o.number} · ${amount}${o.beneficiary?.name ? ` → ${o.beneficiary.name}` : ''} · payé ${EpayUI.ago(since(o))}` });
-      else if (o.status === 'attente') items.push({ rank: f.paid > 0 ? 2 : 3, age, kind: 'op', id: o.id, title: `${f.paid > 0 ? 'Reste à encaisser' : 'Paiement attendu'} · ${who}`, sub: `${o.number} · ${f.paid > 0 ? `reste ${fmtMGA(f.remaining, 0)}` : fmtMGA(f.total, 0)} · ${EpayUI.ago(since(o))}` });
+      else if (o.status === 'attente') items.push({ rank: 3, age, kind: 'op', id: o.id, title: `Paiement attendu · ${who}`, sub: `${o.number} · ${fmtMGA(f.remaining, 0)} · ${EpayUI.ago(since(o))}` });
       else if (o.status === 'envoye' && age >= 2) items.push({ rank: 3, age, kind: 'op', id: o.id, title: `Réception à confirmer · ${who}`, sub: `${o.number} · ${amount} envoyé ${EpayUI.ago(since(o))}` });
-      if (o.status !== 'attente' && f.remaining > 0) items.push({ rank: 2, age, kind: 'op', id: o.id, title: `Reste à encaisser · ${who}`, sub: `${o.number} · reste ${fmtMGA(f.remaining, 0)}` });
+      if (o.status !== 'attente' && f.remaining > 0) items.push({ rank: 2, age, kind: 'op', id: o.id, title: `Paiement non reçu · ${who}`, sub: `${o.number} · ${fmtMGA(f.remaining, 0)} à encaisser (paiement intégral avant envoi)` });
     }
     for (const o of d.ops.filter(x => x.status === 'annulee' && O.figures(x).toRefund > 0)) items.push({ rank: 1, age: 0, kind: 'op', id: o.id, title: `À rembourser · ${o.client || o.number}`, sub: `${o.number} · ${fmtMGA(O.figures(o).toRefund, 0)} (opération annulée)` });
     for (const q of d.openQuotes) {

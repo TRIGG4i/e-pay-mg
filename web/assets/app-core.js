@@ -134,12 +134,22 @@ function updateClient() {
   $('cancelQuoteEdit').textContent = pending ? 'Annuler la modification du devis' : 'Annuler le devis pour ce client';
   if ($('quoteSheet').classList.contains('open') && !state.editingQuoteBase) renderDraftPreview();
 }
+// Débits de la carte malgache, plafonnés (frais fixe compris) : « 2 débits : 5 000 000 + 1 234 000 MGA ».
+function debitPlan(t) {
+  if (!t) return '';
+  if (t.debits <= 1) return `1 débit de carte${t.cardLimitMGA ? ` (plafond ${fmtMGA(t.cardLimitMGA, 0)} par carte et par jour)` : ''}`;
+  const full = t.perDebitMGA + t.feePerDebitMGA, n = t.debits - 1;
+  return `${t.debits} débits de carte : ${n > 1 ? `${n} × ` : ''}${fmtNumber(full, 0)} + ${fmtNumber(t.lastDebitMGA, 0)} MGA, soit ${t.debits} cartes le même jour ou ${t.debits} jours`;
+}
 function updateInternal() {
   const amount = parseInput('internalAmount'), mode = debitMode(), t = calcOwner(amount, state.currency, mode), c = calcClient(amount, state.currency, 'bank');
   $$('[data-debit-mode]').forEach(b => b.classList.toggle('active', b.dataset.debitMode === mode));
   $('internalDebitModeHint').textContent = mode === 'foreign' ? `Recharge ${fmtNumber(TARIFS.rechargeFeePercent, 2)} %` : 'Sans recharge';
-  const ids = ['internalDebit', 'internalBuy', 'internalRate', 'netProfit', 'clientBank', 'rechargeFee', 'ownerFixedFee', 'marginPercent', 'netProfitCash'];
-  if (!t || !c) { ids.forEach(id => { $(id).textContent = '—'; }); return; }
+  const ids = ['internalDebit', 'internalBuy', 'internalRate', 'netProfit', 'clientBank', 'rechargeFee', 'ownerFixedFee', 'marginPercent', 'netProfitCash', 'internalPlan'];
+  if (!t || !c) { ids.forEach(id => { $(id).textContent = '—'; }); $('internalPlan').classList.remove('warn'); return; }
+  const plan = debitPlan(t), blocked = mode === 'direct' && t.debits > 1;
+  $('internalPlan').textContent = blocked ? `Débit direct impossible en un seul paiement au-delà de ${fmtMGA(t.cardLimitMGA, 0)} : passe par la carte étrangère (${t.debits} recharges).` : plan;
+  $('internalPlan').classList.toggle('warn', blocked);
   const profit = c.bankTotal - t.debitMGA;
   $('internalDebit').textContent = fmtNumber(t.debitMGA, 0);
   $('internalBuy').textContent = fmtCurrency(t.totalToBuy, state.currency, 2);
@@ -148,7 +158,7 @@ function updateInternal() {
   $('netProfit').closest('.kpi')?.classList.toggle('loss', profit < 0);
   $('clientBank').textContent = fmtMGA(c.bankTotal, 0);
   $('rechargeFee').textContent = t.rechargeFee > 0 ? fmtCurrency(t.rechargeFee, state.currency, 2) : '—';
-  $('ownerFixedFee').textContent = fmtMGA(t.fixedFeeMGA, 0);
+  $('ownerFixedFee').textContent = t.debits > 1 ? `${fmtMGA(t.fixedFeeMGA, 0)} (${t.debits} × ${fmtNumber(t.feePerDebitMGA, 0)})` : fmtMGA(t.fixedFeeMGA, 0);
   $('marginPercent').textContent = `${fmtNumber(c.bankTotal > 0 ? profit / c.bankTotal * 100 : 0, 2)} %`;
   $('netProfitCash').textContent = fmtMGA(c.cashTotal - t.debitMGA, 0);
 }

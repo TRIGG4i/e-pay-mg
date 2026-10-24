@@ -18,7 +18,7 @@
       clientVisaFeePercent: D.clientVisaFeePercent, bankCurrencyFeePercent: D.bankCurrencyFeePercent, cardFeePercent: D.cardFeePercent,
       fixedVisaFeeMGA: D.fixedVisaFeeMGA, cashFeePercent: D.cashFeePercent, roundTo: D.roundTo
     },
-    costs: { ownerVisaFeePercent: D.ownerVisaFeePercent, rechargeFeePercent: D.rechargeFeePercent, ownerFixedFeeMGA: D.ownerFixedFeeMGA, debitMode: 'foreign' },
+    costs: { ownerVisaFeePercent: D.ownerVisaFeePercent, rechargeFeePercent: D.rechargeFeePercent, ownerFixedFeeMGA: D.ownerFixedFeeMGA, ownerCardLimitMGA: D.ownerCardLimitMGA, debitMode: 'foreign' },
     rates: { eur: 0, usd: 0 },
     messages: {
       quote: 'Bonjour {client}, voici votre devis {entreprise} :',
@@ -42,7 +42,9 @@
       ['cashFeePercent', 'Supplément espèces / Mobile (%)', 'num'], ['roundTo', 'Arrondi du total (MGA)', 'num', 'Total arrondi au-dessus : 1000 par défaut.']] },
     { id: 'costs', title: 'Coûts internes', sub: 'Ce que te coûte un envoi : calcul interne et bénéfice', fields: [
       ['ownerVisaFeePercent', 'Frais sur ton taux VISA (%)', 'num'], ['rechargeFeePercent', 'Recharge carte étrangère (%)', 'num'],
-      ['ownerFixedFeeMGA', 'Frais fixe par envoi (MGA)', 'num'], ['debitMode', 'Mode de débit par défaut', DEBIT_MODES]] },
+      ['ownerFixedFeeMGA', 'Frais fixe par débit de carte (MGA)', 'num'],
+      ['ownerCardLimitMGA', 'Plafond d’un débit de carte (MGA)', 'num', 'Par carte et par jour, frais fixe compris : 5000000 par défaut, 0 = sans plafond. Au-delà, le calcul répartit sur plusieurs débits.'],
+      ['debitMode', 'Mode de débit par défaut', DEBIT_MODES]] },
     { id: 'rates', title: 'Taux manuels', sub: 'Taux VISA de base imposé (0 = taux VISA du jour, automatique)', fields: [
       ['eur', '1 EUR en MGA (base VISA)', 'num'], ['usd', '1 USD en MGA (base VISA)', 'num', 'À n’utiliser que si le taux automatique est faux : les marges s’ajoutent comme d’habitude.']] },
     { id: 'messages', title: 'Messages', sub: 'Textes WhatsApp envoyés aux clients', fields: [
@@ -71,7 +73,8 @@
     for (const k of ['t1', 't2', 't3', 'clientVisaFeePercent', 'bankCurrencyFeePercent', 'cardFeePercent', 'cashFeePercent']) if (!(t[k] >= 0 && t[k] <= 50)) return 'Les pourcentages des tarifs vont de 0 à 50 %.';
     if (!(t.fixedVisaFeeMGA >= 0 && t.roundTo >= 0)) return 'Frais fixe et arrondi : nombres positifs.';
     for (const k of ['ownerVisaFeePercent', 'rechargeFeePercent']) if (!(c[k] >= 0 && c[k] < 50)) return 'Les pourcentages des coûts vont de 0 à 50 %.';
-    if (!(c.ownerFixedFeeMGA >= 0)) return 'Frais fixe par envoi : nombre positif.';
+    if (!(c.ownerFixedFeeMGA >= 0)) return 'Frais fixe par débit : nombre positif.';
+    if (!(c.ownerCardLimitMGA === 0 || c.ownerCardLimitMGA > c.ownerFixedFeeMGA)) return 'Plafond de carte : 0 (sans plafond) ou un montant supérieur au frais fixe.';
     if (!DEBIT_MODES[c.debitMode]) return 'Mode de débit inconnu.';
     for (const k of ['eur', 'usd']) if (!(r[k] === 0 || (r[k] >= 500 && r[k] <= 50000))) return 'Taux manuel : 0 (automatique) ou un taux réaliste, par exemple 5150.';
     return '';
@@ -86,7 +89,7 @@
       ...D, tiers: [{ below: t.t1max, percent: t.t1 }, { below: t.t2max, percent: t.t2 }, { below: null, percent: t.t3 }],
       clientVisaFeePercent: t.clientVisaFeePercent, bankCurrencyFeePercent: t.bankCurrencyFeePercent, cardFeePercent: t.cardFeePercent,
       fixedVisaFeeMGA: t.fixedVisaFeeMGA, cashFeePercent: t.cashFeePercent, roundTo: t.roundTo,
-      ownerVisaFeePercent: k.ownerVisaFeePercent, rechargeFeePercent: k.rechargeFeePercent, ownerFixedFeeMGA: k.ownerFixedFeeMGA
+      ownerVisaFeePercent: k.ownerVisaFeePercent, rechargeFeePercent: k.rechargeFeePercent, ownerFixedFeeMGA: k.ownerFixedFeeMGA, ownerCardLimitMGA: k.ownerCardLimitMGA
     };
     DEFAULT_DEBIT_MODE = k.debitMode;
     MANUAL_BASE.EUR = s.rates.eur; MANUAL_BASE.USD = s.rates.usd;

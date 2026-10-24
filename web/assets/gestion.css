@@ -196,3 +196,5 @@ html[data-theme="dark"] .toast{background:#232936;border:1px solid var(--line-st
 @media print{
   .toast{display:none!important}
 }
+.result-note{margin:12px 0 0;font-size:11px;line-height:1.45;font-weight:650;color:rgba(255,255,255,.72)}
+.result-note.warn{color:#ffd28a}

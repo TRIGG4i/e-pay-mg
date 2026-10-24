@@ -14,7 +14,9 @@
     clientVisaFeePercent: 4,
     ownerVisaFeePercent: 3.5,
     rechargeFeePercent: 1,
-    ownerFixedFeeMGA: 1000
+    ownerFixedFeeMGA: 1000,
+    // Plafond d'un débit de la carte VISA malgache (par carte et par jour), frais fixe compris ; 0 = sans plafond.
+    ownerCardLimitMGA: 5000000
   });
   const CURRENCIES = ['EUR', 'USD'];
   // Taux VISA de base observés le 24/10/2026 : seulement si aucun taux n'a jamais pu être chargé.
@@ -56,14 +58,25 @@
   }
 
   // Coût réel pour le propriétaire : débit direct, ou carte étrangère rechargée (frais de recharge).
+  // La carte malgache est débitée par tranches : chaque débit, frais fixe compris, reste sous le plafond
+  // (5 000 000 MGA : 4 999 000 achetés + 1 000 de frais). Plusieurs débits = plusieurs cartes ou plusieurs jours.
   function owner(amount, rate, debitMode, cfg) {
     const c = config(cfg);
     if (!(amount > 0) || !(rate > 0)) return null;
     const foreign = debitMode === 'foreign';
     const totalToBuy = foreign ? amount / (1 - c.rechargeFeePercent / 100) : amount;
     const rechargeFee = foreign ? totalToBuy * c.rechargeFeePercent / 100 : 0;
-    const debitMGA = totalToBuy * rate + c.ownerFixedFeeMGA;
-    return { rate, totalToBuy, rechargeFee, fixedFeeMGA: c.ownerFixedFeeMGA, debitMGA, debitMode: foreign ? 'foreign' : 'direct' };
+    const buyMGA = totalToBuy * rate;
+    const fee = num(c.ownerFixedFeeMGA), limit = num(c.ownerCardLimitMGA);
+    const perDebitMGA = limit > fee ? limit - fee : Infinity;
+    const debits = Number.isFinite(perDebitMGA) ? Math.max(1, Math.ceil(buyMGA / perDebitMGA - 1e-9)) : 1;
+    const fixedFeeMGA = debits * fee;
+    return {
+      rate, totalToBuy, rechargeFee, buyMGA, debits, perDebitMGA, feePerDebitMGA: fee, fixedFeeMGA,
+      cardLimitMGA: Number.isFinite(perDebitMGA) ? limit : 0,
+      lastDebitMGA: buyMGA - (debits - 1) * (Number.isFinite(perDebitMGA) ? perDebitMGA : 0) + fee,
+      debitMGA: buyMGA + fixedFeeMGA, debitMode: foreign ? 'foreign' : 'direct'
+    };
   }
 
   // Montant maximal envoyable avec un budget en ariary (recherche par dichotomie, arrondi à l'unité inférieure).
