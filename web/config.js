@@ -1,5 +1,5 @@
 (() => {
-  const BUILD = '20261024-gestion1';
+  const BUILD = '20261024-logo1';
   const KEY = 'epayRuntimeBuild';
   // En local (tests), l'app parle au serveur qui la sert ; en ligne, au serveur E-Pay du VPS.
   const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);

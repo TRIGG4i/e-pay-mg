@@ -8,18 +8,19 @@
     if (fill) { ctx.fillStyle = fill; ctx.fill(); }
     if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
   };
-  // Marque E-Pay : le « E » et la flèche du transfert.
+  // Monogramme E-Pay (même dessin que assets/epay-mark.svg) : « ϵ » blanc, barre bleue qui sort.
   const drawLogo = (ctx, x, y, s) => {
-    roundRect(ctx, x, y, s, s, s * 0.28, INK);
-    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = s * 0.085; ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x + s * 0.29, y + s * 0.25); ctx.lineTo(x + s * 0.29, y + s * 0.75);
-    ctx.moveTo(x + s * 0.29, y + s * 0.25); ctx.lineTo(x + s * 0.66, y + s * 0.25);
-    ctx.moveTo(x + s * 0.29, y + s * 0.50); ctx.lineTo(x + s * 0.58, y + s * 0.50);
-    ctx.moveTo(x + s * 0.29, y + s * 0.75); ctx.lineTo(x + s * 0.66, y + s * 0.75);
-    ctx.stroke();
-    ctx.strokeStyle = '#5B78FF'; ctx.lineWidth = s * 0.067;
-    ctx.beginPath(); ctx.moveTo(x + s * 0.59, y + s * 0.39); ctx.lineTo(x + s * 0.73, y + s * 0.50); ctx.lineTo(x + s * 0.59, y + s * 0.61); ctx.stroke();
+    const ink = ctx.createLinearGradient(x, y, x + s, y + s);
+    ink.addColorStop(0, '#1D2330'); ink.addColorStop(0.55, '#0E1118'); ink.addColorStop(1, '#06070A');
+    roundRect(ctx, x, y, s, s, s * 0.23, ink);
+    const open = 41.354 * Math.PI / 180;
+    ctx.lineCap = 'round'; ctx.lineWidth = s * 0.109375;
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x + s * 0.421875, y + s * 0.5, s * 0.21875, -open, open, true); ctx.stroke();
+    const blue = ctx.createLinearGradient(x + s * 0.3477, 0, x + s * 0.8242, 0);
+    blue.addColorStop(0, '#9AABFF'); blue.addColorStop(1, '#5B78FF');
+    ctx.strokeStyle = blue;
+    ctx.beginPath(); ctx.moveTo(x + s * 0.3477, y + s * 0.5); ctx.lineTo(x + s * 0.8242, y + s * 0.5); ctx.stroke();
   };
   const wrap = (ctx, text, max) => {
     const out = [];
