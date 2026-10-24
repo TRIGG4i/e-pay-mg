@@ -2,7 +2,7 @@
   "id": "./",
   "name": "E-Pay MG",
   "short_name": "E-Pay MG",
-  "description": "Calculateur interne et générateur de devis E-Pay MG.",
+  "description": "Paiements en devise : calcul, devis, opérations, clients et suivi.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
