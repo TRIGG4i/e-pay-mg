@@ -60,3 +60,25 @@ test('tarifs personnalisés pris en compte', () => {
   assert.equal(P.commissionPercent(150, cfg), 5);
   assert.equal(P.client(1000, 5000, 'bank', cfg).total % 500, 0);
 });
+
+test('réception : taux VISA inverse moins 4 % de frais, puis commission du palier dans le taux', () => {
+  // Calculateur VISA du 25/10/2026, carte en EUR, dépense en MGA : 1 EUR = 5 127,30 MGA, 4 930,09 avec 4 % de frais.
+  const base = 1 / 0.0001950345;
+  assert.equal(Math.round(P.receiveVisaRate(base, D) * 100) / 100, 4930.09);
+  const r = P.receive(1000, base, D);
+  assert.equal(r.percent, 2.99);
+  assert.equal(Math.round(r.rate * 100) / 100, 4782.68);
+  assert.equal(r.payout, 4782600); // arrondi à la centaine inférieure
+  assert.equal(Math.round(r.marginMGA), Math.round(1000 * r.visaRate) - 4782600);
+  assert.equal(P.receive(350, base, D).percent, 4.99);
+  assert.equal(P.receive(0, base, D), null);
+});
+
+test('réception : montant en devise à recevoir pour remettre un montant en ariary', () => {
+  const base = 5127.3;
+  for (const target of [500000, 1639400, 10000000]) {
+    const need = P.receiveForPayout(target, base, D);
+    assert.ok(P.receive(need, base, D).payout >= target, `${need} suffit pour ${target}`);
+    assert.ok(P.receive(need - 0.01, base, D).payout < target, `${need} est le minimum pour ${target}`);
+  }
+});

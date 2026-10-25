@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Administration de la base de gestion E-Pay MG, sur le serveur.
+// Administration de la base de gestion HELPEO, sur le serveur.
 //   node server/admin.mjs activation --html <fichier> [--secret <fichier>] [--hours 48]
 //     crée un lien d'activation à usage unique (premier mot de passe ou mot de passe oublié) ;
 //     le lien n'est écrit que dans les fichiers indiqués, jamais à l'écran ni dans un journal.
@@ -22,9 +22,9 @@ try {
     if (secret) { mkdirSync(path.dirname(secret), { recursive: true, mode: 0o700 }); writeFileSync(secret, `${link}\n`, { mode: 0o600 }); chmodSync(secret, 0o600); }
     if (html) {
       mkdirSync(path.dirname(html), { recursive: true });
-      writeFileSync(html, `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Activer E-Pay MG</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f5f1;font:16px/1.5 system-ui,sans-serif;color:#0b0d12}main{max-width:340px;padding:28px;text-align:center}a{display:block;margin-top:18px;padding:14px 18px;border-radius:14px;background:#0e1118;color:#fff;font-weight:800;text-decoration:none}p{color:#787d87;font-size:14px}</style></head>
-<body><main><h1>E-Pay MG</h1><p>Lien à usage unique, valable ${hours} h : il ouvre E-Pay MG et te fait choisir ton mot de passe.</p><a href="${link}">Activer E-Pay MG sur cet appareil</a></main></body></html>\n`, { mode: 0o644 });
+      writeFileSync(html, `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Activer HELPEO</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F5F3EC;font:16px/1.5 system-ui,sans-serif;color:#13231F}main{max-width:340px;padding:28px;text-align:center}h1{margin:0;letter-spacing:.04em}h1 span{color:#FF7A50}small{display:block;color:#65706B;font-size:13px;font-weight:600}a{display:block;margin-top:18px;padding:14px 18px;border-radius:14px;background:#0E7A62;color:#fff;font-weight:800;text-decoration:none}p{color:#65706B;font-size:14px}</style></head>
+<body><main><h1>HELPE<span>O</span></h1><small>On vous aide à régler ça</small><p>Lien à usage unique, valable ${hours} h : il ouvre HELPEO et te fait choisir ton mot de passe.</p><a href="${link}">Activer HELPEO sur cet appareil</a></main></body></html>\n`, { mode: 0o644 });
     }
     console.log(`Lien d’activation créé, valable ${hours} h${html ? ` : ${html}` : ''}${secret ? ` (copie privée : ${secret})` : ''}.`);
   } else if (args[0] === 'status') {
@@ -36,6 +36,6 @@ try {
     throw new Error('commande inconnue (activation, status)');
   }
 } catch (error) {
-  console.error(`admin E-Pay : ${error.message}`);
+  console.error(`admin HELPEO : ${error.message}`);
   process.exitCode = 1;
 } finally { store.close(); }

@@ -16,9 +16,9 @@
 
   function data() {
     const ops = O.list(), live = ops.filter(o => o.status !== 'annulee');
-    // Encaissements : paiements datés (un remboursement est un paiement négatif).
+    // Encaissements : règlements datés (un remboursement est un règlement négatif).
     const cash = ops.flatMap(o => (o.payments || []).map(p => ({ date: String(p.date || ''), amount: Number(p.amount) || 0 })));
-    // Bénéfice : compté à l'envoi, au débit réellement enregistré.
+    // Bénéfice : compté à l'exécution, au débit réellement enregistré.
     const sent = live.filter(O.isSent).map(o => ({ o, date: String(o.execution?.date || o.updatedAt || ''), profit: O.figures(o).profit }));
     const open = ops.filter(O.isOpen);
     const openQuotes = state.quotes.filter(q => q.number && !q.operationId);
@@ -41,11 +41,11 @@
     const toSend = d.open.filter(o => o.status === 'paye');
     const tile = (label, value, sub, act = '', tone = '') => '<button type="button" class="kpi' + (tone ? ' ' + tone : '') + '"' + (act ? ' data-go="' + act + '"' : '') + '><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong><small>' + esc(sub) + '</small></button>';
     el('suiviKpis').innerHTML = tile(`Encaissé · ${cur.label}`, fmtMGA(cur.cash, 0), `${prev.label} : ${fmtMGA(prev.cash, 0)}`)
-      + tile(`Bénéfice · ${cur.label}`, fmtMGA(cur.profit, 0), `${cur.count} envoi(s) · ${prev.label} : ${fmtMGA(prev.profit, 0)}`, '', cur.profit < 0 ? 'loss' : 'profit')
+      + tile(`Bénéfice · ${cur.label}`, fmtMGA(cur.profit, 0), `${cur.count} opération(s) · ${prev.label} : ${fmtMGA(prev.profit, 0)}`, '', cur.profit < 0 ? 'loss' : 'profit')
       + tile('À encaisser', fmtMGA(toCollect, 0), `${d.open.filter(o => O.figures(o).remaining > 0).length} opération(s) à régler`, 'attente')
-      + tile('À envoyer', String(toSend.length), toSend.length ? volumeText(toSend.reduce((v, o) => (v[o.currency] = (v[o.currency] || 0) + (Number(o.amount) || 0), v), {})) : 'aucun transfert payé en attente', 'paye');
+      + tile('À exécuter', String(toSend.length), toSend.length ? volumeText(toSend.reduce((v, o) => (v[o.currency] = (v[o.currency] || 0) + (Number(o.amount) || 0), v), {})) : 'rien de réglé en attente', 'paye');
     const vol = volumeText(cur.volume);
-    el('suiviVolume').textContent = vol ? `Envoyé en ${cur.long} : ${vol}.` : '';
+    el('suiviVolume').textContent = vol ? `Volume de ${cur.long} : ${vol}.` : '';
   }
 
   // À faire : ce qui attend une action, le plus urgent d'abord.
@@ -53,10 +53,10 @@
     const items = [], since = o => [...(o.events || [])].reverse().find(e => e.status === o.status)?.at || o.createdAt;
     for (const o of d.open) {
       const f = O.figures(o), age = EpayUI.daysSince(since(o)), who = o.client || o.number, amount = fmtCurrency(Number(o.amount) || 0, o.currency, 0);
-      if (o.status === 'paye') items.push({ rank: 1, age, kind: 'op', id: o.id, title: `Transfert à envoyer · ${who}`, sub: `${o.number} · ${amount}${o.beneficiary?.name ? ` → ${o.beneficiary.name}` : ''} · payé ${EpayUI.ago(since(o))}` });
-      else if (o.status === 'attente') items.push({ rank: 3, age, kind: 'op', id: o.id, title: `Paiement attendu · ${who}`, sub: `${o.number} · ${fmtMGA(f.remaining, 0)} · ${EpayUI.ago(since(o))}` });
-      else if (o.status === 'envoye' && age >= 2) items.push({ rank: 3, age, kind: 'op', id: o.id, title: `Réception à confirmer · ${who}`, sub: `${o.number} · ${amount} envoyé ${EpayUI.ago(since(o))}` });
-      if (o.status !== 'attente' && f.remaining > 0) items.push({ rank: 2, age, kind: 'op', id: o.id, title: `Paiement non reçu · ${who}`, sub: `${o.number} · ${fmtMGA(f.remaining, 0)} à encaisser (paiement intégral avant envoi)` });
+      if (o.status === 'paye') items.push({ rank: 1, age, kind: 'op', id: o.id, title: `À exécuter · ${who}`, sub: `${o.number} · ${amount}${o.beneficiary?.name ? ` → ${o.beneficiary.name}` : ''} · réglé ${EpayUI.ago(since(o))}` });
+      else if (o.status === 'attente') items.push({ rank: 3, age, kind: 'op', id: o.id, title: `Règlement attendu · ${who}`, sub: `${o.number} · ${fmtMGA(f.remaining, 0)} · ${EpayUI.ago(since(o))}` });
+      else if (o.status === 'envoye' && age >= 2) items.push({ rank: 3, age, kind: 'op', id: o.id, title: `À confirmer · ${who}`, sub: `${o.number} · ${amount} exécutée ${EpayUI.ago(since(o))}` });
+      if (o.status !== 'attente' && f.remaining > 0) items.push({ rank: 2, age, kind: 'op', id: o.id, title: `Règlement incomplet · ${who}`, sub: `${o.number} · ${fmtMGA(f.remaining, 0)} à encaisser (totalité avant exécution)` });
     }
     for (const o of d.ops.filter(x => x.status === 'annulee' && O.figures(x).toRefund > 0)) items.push({ rank: 1, age: 0, kind: 'op', id: o.id, title: `À rembourser · ${o.client || o.number}`, sub: `${o.number} · ${fmtMGA(O.figures(o).toRefund, 0)} (opération annulée)` });
     for (const q of d.openQuotes) {
@@ -66,7 +66,7 @@
     items.sort((a, b) => a.rank - b.rank || b.age - a.age);
     el('suiviTodo').innerHTML = items.length ? items.slice(0, 8).map(t => '<button type="button" class="history-row todo-row rank-' + t.rank + '" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '"><span><strong>' + esc(t.title) + '</strong><small>' + esc(t.sub) + '</small></span><svg class="icon sm"><use href="#i-chevron"/></svg></button>').join('')
       + (items.length > 8 ? '<p class="field-hint">Et ' + (items.length - 8) + ' autre(s).</p>' : '')
-      : '<p class="invoice-empty">Rien en attente. Les transferts à envoyer, paiements attendus et devis à relancer apparaîtront ici.</p>';
+      : '<p class="invoice-empty">Rien en attente. Les opérations à exécuter, règlements attendus et devis à relancer apparaîtront ici.</p>';
   }
 
   function pipeline(d) {
@@ -114,7 +114,7 @@
     box.innerHTML = svg + '</svg><div class="chart-tip" id="suiviTip" hidden></div>';
     box.dataset.months = JSON.stringify(tips);
     el('suiviChartTitle').textContent = MEASURES[measure].title;
-    el('suiviTable').innerHTML = '<table class="chart-table"><thead><tr><th>Mois</th><th>Encaissé</th><th>Bénéfice</th><th>Envoyé</th></tr></thead><tbody>'
+    el('suiviTable').innerHTML = '<table class="chart-table"><thead><tr><th>Mois</th><th>Encaissé</th><th>Bénéfice</th><th>Volume</th></tr></thead><tbody>'
       + d.months.map(m => '<tr><td>' + esc(m.long) + '</td><td>' + esc(fmtMGA(m.cash, 0)) + '</td><td>' + esc(fmtMGA(m.profit, 0)) + '</td><td>' + esc(volumeText(m.volume) || '—') + '</td></tr>').join('') + '</tbody></table>';
     box.hidden = showTable; el('suiviTable').hidden = !showTable;
     el('suiviTableToggle').textContent = showTable ? 'Graphique' : 'Tableau';
@@ -126,7 +126,7 @@
     if (i == null || !rows[i]) { if (t) t.hidden = true; return; }
     const [label, value, x, yTop, count, vol] = rows[i];
     const line = (tag, text) => Object.assign(document.createElement(tag), { textContent: text });
-    t.replaceChildren(line('strong', fmtMGA(value, 0)), line('span', label), ...(measure === 'profit' && count ? [line('span', `${count} envoi(s) · ${vol}`)] : []));
+    t.replaceChildren(line('strong', fmtMGA(value, 0)), line('span', label), ...(measure === 'profit' && count ? [line('span', `${count} opération(s) · ${vol}`)] : []));
     t.hidden = false;
     const w = t.offsetWidth, h = t.offsetHeight;
     let left = Math.min(Math.max(4, x - w / 2), box.clientWidth - w - 4), top = yTop - h - 10;

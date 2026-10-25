@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="HELPEO"><title>HELPEO</title>
+  <defs>
+    <linearGradient id="hpTile" x1="0.00" y1="0.00" x2="512.00" y2="512.00" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#13866C"/><stop offset="1" stop-color="#0A4F42"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.00" y="0.00" width="512.00" height="512.00" rx="0.00" fill="url(#hpTile)"/>
+  <path d="M182.08,158.56L182.08,353.44M329.92,158.56L329.92,353.44" fill="none" stroke="#FFFFFF" stroke-width="50.40" stroke-linecap="round"/>
+  <path d="M182.08,227.44Q256.00,334.96 329.92,227.44" fill="none" stroke="#FF7A50" stroke-width="50.40" stroke-linecap="round"/>
+</svg>

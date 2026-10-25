@@ -1,4 +1,4 @@
-// API privée d'E-Pay MG : taux VISA du jour, compte du propriétaire et synchronisation
+// API privée de HELPEO : taux VISA du jour, compte du propriétaire et synchronisation
 // des devis, opérations, clients et réglages entre ses appareils.
 import http from 'node:http';
 import os from 'node:os';
@@ -13,7 +13,7 @@ const webRoot = path.resolve(here, '../web');
 const PORT = Number(process.env.PORT || 4281);
 const PUBLIC_ORIGIN = String(process.env.PUBLIC_ORIGIN || 'https://trigg4i.github.io').replace(/\/$/, '');
 const store = openStore(process.env.EPAY_DATA_DIR || path.join(os.homedir(), 'apps', 'epay-data'));
-// Tests : taux fixes, sans appel à VISA (EPAY_FIXED_RATES='{"EUR":5000,"USD":4500}').
+// Tests : taux fixes, sans appel à VISA (EPAY_FIXED_RATES='{"EUR":5000,"USD":4500,"receive":{"EUR":4980,"USD":4500}}').
 const FIXED_RATES = (() => { try { return JSON.parse(process.env.EPAY_FIXED_RATES || 'null'); } catch { return null; } })();
 const buckets = new Map();
 const authFailures = new Map();
@@ -89,7 +89,8 @@ const requireSession = (req) => {
 async function rates(force) {
   if (FIXED_RATES) {
     const at = new Date().toISOString();
-    return { source: 'test', observedAt: at, rates: Object.fromEntries(Object.entries(FIXED_RATES).map(([c, v]) => [c, { base: Number(v), asOf: at }])) };
+    const shape = list => Object.fromEntries(Object.entries(list).filter(([c]) => c !== 'receive').map(([c, v]) => [c, { base: Number(v), asOf: at }]));
+    return { source: 'test', observedAt: at, rates: shape(FIXED_RATES), receive: shape(FIXED_RATES.receive || FIXED_RATES) };
   }
   return currentRates({ force });
 }
@@ -160,12 +161,12 @@ const server = http.createServer(async (req, res) => {
     json(res, 404, { error: 'Introuvable' });
   } catch (error) {
     const status = Number(error.status) || 500;
-    if (status >= 500) console.error('E-Pay API :', error.message);
+    if (status >= 500) console.error('HELPEO API :', error.message);
     json(res, status, { error: error.message || 'Erreur' }, headers);
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => console.log(`E-Pay MG API : http://127.0.0.1:${PORT}`));
+server.listen(PORT, '127.0.0.1', () => console.log(`HELPEO API : http://127.0.0.1:${PORT}`));
 
 // Le taux VISA passe par un navigateur (~10 s) : préchargé au démarrage puis chaque heure.
 if (!FIXED_RATES) {
@@ -174,6 +175,6 @@ if (!FIXED_RATES) {
   setInterval(warm, 61 * 60 * 1000).unref();
 }
 // Copie quotidienne de la base (30 jours gardés).
-const backup = () => { try { store.backup(); } catch (error) { console.error('Sauvegarde E-Pay :', error.message); } };
+const backup = () => { try { store.backup(); } catch (error) { console.error('Sauvegarde HELPEO :', error.message); } };
 setTimeout(backup, 5000).unref();
 setInterval(backup, 24 * 3600 * 1000).unref();

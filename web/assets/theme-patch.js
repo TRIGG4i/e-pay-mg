@@ -25,7 +25,7 @@
     const next = theme === "dark" ? "dark" : "light";
     root.dataset.theme = next;
     root.style.colorScheme = next;
-    if (themeMeta) themeMeta.setAttribute("content", next === "dark" ? "#0d1016" : "#f4f5f7");
+    if (themeMeta) themeMeta.setAttribute("content", next === "dark" ? "#0A1412" : "#F5F3EC");
     if (persist) {
       try { localStorage.setItem(STORAGE_KEY, next); } catch {}
     }

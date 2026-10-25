@@ -1,5 +1,5 @@
-// Réglages : entreprise, paiement, documents, tarifs, coûts, taux et messages, partagés entre appareils ;
-// le compte (un mot de passe) qui relie les appareils au serveur E-Pay ; la sauvegarde complète.
+// Réglages : entreprise, règlement, documents, tarifs, réception, coûts, taux et messages, partagés entre appareils ;
+// le compte (un mot de passe) qui relie les appareils au serveur HELPEO ; la sauvegarde complète.
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
@@ -10,7 +10,7 @@
   const DEBIT_MODES = { foreign: 'Carte étrangère (recharge)', direct: 'Débit direct' };
   // Valeurs d'origine : celles du code, tant que rien n'a été modifié.
   const DEFAULTS = {
-    company: { name: OFFICE.name, slogan: OFFICE.slogan, phone: '', email: '', address: '', nif: '', stat: '' },
+    company: { name: OFFICE.name, slogan: OFFICE.slogan, phone: '', email: '', address: '', nif: '', stat: '', legal: OFFICE.legal },
     payment: { mvola: '', orange: '', airtel: '', bankHolder: '', bankName: '', rib: '' },
     docs: { quotePrefix: DOCS.prefixes.quote, operationPrefix: DOCS.prefixes.operation, quoteValidityDays: DOCS.quoteValidityDays, quoteNote: DOCS.quoteNote },
     pricing: {
@@ -18,8 +18,9 @@
       clientVisaFeePercent: D.clientVisaFeePercent, bankCurrencyFeePercent: D.bankCurrencyFeePercent, cardFeePercent: D.cardFeePercent,
       fixedVisaFeeMGA: D.fixedVisaFeeMGA, cashFeePercent: D.cashFeePercent, roundTo: D.roundTo
     },
+    receive: { receiveVisaFeePercent: D.receiveVisaFeePercent, receiveRoundTo: D.receiveRoundTo },
     costs: { ownerVisaFeePercent: D.ownerVisaFeePercent, rechargeFeePercent: D.rechargeFeePercent, ownerFixedFeeMGA: D.ownerFixedFeeMGA, ownerCardLimitMGA: D.ownerCardLimitMGA, debitMode: 'foreign' },
-    rates: { eur: 0, usd: 0 },
+    rates: { eur: 0, usd: 0, eurIn: 0, usdIn: 0 },
     messages: {
       quote: 'Bonjour {client}, voici votre devis {entreprise} :',
       status: 'Bonjour {client}, votre opération {operation} ({montant}) : {statut}.{reference}\n{entreprise}',
@@ -29,8 +30,9 @@
   };
   const SECTIONS = [
     { id: 'company', title: 'Entreprise', sub: 'Émetteur imprimé sur les devis et les reçus', fields: [
-      ['name', 'Nom'], ['slogan', 'Slogan'], ['phone', 'Téléphone'], ['email', 'E-mail'], ['address', 'Adresse', 'wide'], ['nif', 'NIF'], ['stat', 'STAT']] },
-    { id: 'payment', title: 'Paiement', sub: 'Où tes clients règlent : imprimé sur devis et reçus', fields: [
+      ['name', 'Nom'], ['slogan', 'Slogan'], ['phone', 'Téléphone'], ['email', 'E-mail'], ['address', 'Adresse', 'wide'], ['nif', 'NIF'], ['stat', 'STAT'],
+      ['legal', 'Pied des documents', 'wide']] },
+    { id: 'payment', title: 'Règlement', sub: 'Où tes clients règlent : imprimé sur devis et reçus', fields: [
       ['mvola', 'MVola'], ['orange', 'Orange Money'], ['airtel', 'Airtel Money'], ['bankHolder', 'Titulaire du compte'], ['bankName', 'Banque', 'wide'], ['rib', 'RIB', 'wide']] },
     { id: 'docs', title: 'Devis et opérations', sub: 'Numérotation, validité et mention du devis', fields: [
       ['quotePrefix', 'Préfixe des devis', 'code'], ['operationPrefix', 'Préfixe des opérations', 'code'],
@@ -40,31 +42,40 @@
       ['t2', 'Commission tranche 2 (%)', 'num'], ['t3', 'Commission au-delà (%)', 'num'], ['clientVisaFeePercent', 'Marge sur le taux VISA (%)', 'num'],
       ['bankCurrencyFeePercent', 'Frais bancaires en devise (%)', 'num'], ['cardFeePercent', 'Frais de carte (%)', 'num'], ['fixedVisaFeeMGA', 'Frais fixe VISA (MGA)', 'num'],
       ['cashFeePercent', 'Supplément espèces / Mobile (%)', 'num'], ['roundTo', 'Arrondi du total (MGA)', 'num', 'Total arrondi au-dessus : 1000 par défaut.']] },
-    { id: 'costs', title: 'Coûts internes', sub: 'Ce que te coûte un envoi : calcul interne et bénéfice', fields: [
+    { id: 'receive', title: 'Réception', sub: 'Depuis l’étranger : mêmes paliers de commission que les tarifs client', fields: [
+      ['receiveVisaFeePercent', 'Frais VISA, carte en devise (%)', 'num', 'Frais saisis dans le calculateur VISA (devise vers MGA) : 4 par défaut.'],
+      ['receiveRoundTo', 'Arrondi du montant remis (MGA)', 'num', 'Arrondi en dessous : 100 par défaut.']] },
+    { id: 'costs', title: 'Coûts internes', sub: 'Ce que te coûte une opération : calcul interne et bénéfice', fields: [
       ['ownerVisaFeePercent', 'Frais sur ton taux VISA (%)', 'num'], ['rechargeFeePercent', 'Recharge carte étrangère (%)', 'num'],
       ['ownerFixedFeeMGA', 'Frais fixe par débit de carte (MGA)', 'num'],
       ['ownerCardLimitMGA', 'Plafond d’un débit de carte (MGA)', 'num', 'Par carte et par jour, frais fixe compris : 5000000 par défaut, 0 = sans plafond. Au-delà, le calcul répartit sur plusieurs débits.'],
       ['debitMode', 'Mode de débit par défaut', DEBIT_MODES]] },
     { id: 'rates', title: 'Taux manuels', sub: 'Taux VISA de base imposé (0 = taux VISA du jour, automatique)', fields: [
-      ['eur', '1 EUR en MGA (base VISA)', 'num'], ['usd', '1 USD en MGA (base VISA)', 'num', 'À n’utiliser que si le taux automatique est faux : les marges s’ajoutent comme d’habitude.']] },
+      ['eur', '1 EUR en MGA (base VISA)', 'num'], ['usd', '1 USD en MGA (base VISA)', 'num'],
+      ['eurIn', '1 EUR en MGA, réception (base VISA)', 'num'], ['usdIn', '1 USD en MGA, réception (base VISA)', 'num', 'À n’utiliser que si le taux automatique est faux : les marges s’ajoutent comme d’habitude.']] },
     { id: 'messages', title: 'Messages', sub: 'Textes WhatsApp envoyés aux clients', fields: [
-      ['quote', 'Avant le devis', 'text'], ['status', 'Avancement de l’opération', 'text'], ['reminder', 'Relance de paiement', 'text'],
+      ['quote', 'Avant le devis', 'text'], ['status', 'Avancement de l’opération', 'text'], ['reminder', 'Relance', 'text'],
       ['receipt', 'Avant le reçu', 'text', 'Variables : {client}, {operation}, {montant}, {statut}, {reference}, {beneficiaire}, {total}, {paye}, {reste}, {entreprise}.']] }
   ];
 
   const readStored = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); return v && typeof v === 'object' && !Array.isArray(v) ? v : null; } catch { return null; } };
+  // Anciennes valeurs d'origine (E-Pay MG) : remplacées par celles de HELPEO tant qu'elles n'ont pas été modifiées.
+  const LEGACY = {
+    company: { name: ['E-Pay MG'], slogan: ['Paiements en devise'] },
+    docs: { quotePrefix: ['EP'], quoteNote: ['Le total correspond au montant converti augmenté des frais de service et de traitement applicables.'] }
+  };
   // Seules les clés connues sont reprises, au bon type ; une clé absente garde sa valeur d'origine.
   function merged(stored) {
     const out = clone(DEFAULTS);
     for (const [sec, fields] of Object.entries(out)) for (const k of Object.keys(fields)) {
       const v = stored?.[sec]?.[k];
-      if (v === undefined || v === null) continue;
+      if (v === undefined || v === null || LEGACY[sec]?.[k]?.includes(v)) continue;
       out[sec][k] = typeof fields[k] === 'number' ? (Number.isFinite(Number(v)) ? Number(v) : fields[k]) : String(v);
     }
     return out;
   }
   function validate(s) {
-    const d = s.docs, t = s.pricing, c = s.costs, r = s.rates;
+    const d = s.docs, t = s.pricing, c = s.costs, r = s.rates, v = s.receive;
     if (!s.company.name) return 'Indique le nom de l’entreprise.';
     for (const k of ['quotePrefix', 'operationPrefix']) if (!/^[A-Z0-9]{1,8}$/.test(d[k])) return 'Préfixes : lettres majuscules et chiffres, 8 au maximum.';
     if (d.quotePrefix === d.operationPrefix) return 'Les deux préfixes doivent être différents.';
@@ -72,16 +83,17 @@
     if (!(t.t1max > 0 && t.t2max > t.t1max)) return 'Tarifs : la tranche 2 doit commencer au-dessus de la tranche 1.';
     for (const k of ['t1', 't2', 't3', 'clientVisaFeePercent', 'bankCurrencyFeePercent', 'cardFeePercent', 'cashFeePercent']) if (!(t[k] >= 0 && t[k] <= 50)) return 'Les pourcentages des tarifs vont de 0 à 50 %.';
     if (!(t.fixedVisaFeeMGA >= 0 && t.roundTo >= 0)) return 'Frais fixe et arrondi : nombres positifs.';
+    if (!(v.receiveVisaFeePercent >= 0 && v.receiveVisaFeePercent <= 50 && v.receiveRoundTo >= 0)) return 'Réception : frais de 0 à 50 %, arrondi positif.';
     for (const k of ['ownerVisaFeePercent', 'rechargeFeePercent']) if (!(c[k] >= 0 && c[k] < 50)) return 'Les pourcentages des coûts vont de 0 à 50 %.';
     if (!(c.ownerFixedFeeMGA >= 0)) return 'Frais fixe par débit : nombre positif.';
     if (!(c.ownerCardLimitMGA === 0 || c.ownerCardLimitMGA > c.ownerFixedFeeMGA)) return 'Plafond de carte : 0 (sans plafond) ou un montant supérieur au frais fixe.';
     if (!DEBIT_MODES[c.debitMode]) return 'Mode de débit inconnu.';
-    for (const k of ['eur', 'usd']) if (!(r[k] === 0 || (r[k] >= 500 && r[k] <= 50000))) return 'Taux manuel : 0 (automatique) ou un taux réaliste, par exemple 5150.';
+    for (const k of ['eur', 'usd', 'eurIn', 'usdIn']) if (!(r[k] === 0 || (r[k] >= 500 && r[k] <= 50000))) return 'Taux manuel : 0 (automatique) ou un taux réaliste, par exemple 5150.';
     return '';
   }
   function apply(s) {
     const c = s.company, p = s.payment, d = s.docs, t = s.pricing, k = s.costs;
-    Object.assign(OFFICE, { name: c.name, slogan: c.slogan, phone: c.phone, email: c.email, address: c.address, nif: c.nif, stat: c.stat, mvola: p.mvola, orange: p.orange, airtel: p.airtel, bankHolder: p.bankHolder, bankName: p.bankName, rib: p.rib });
+    Object.assign(OFFICE, { name: c.name, slogan: c.slogan, legal: c.legal, phone: c.phone, email: c.email, address: c.address, nif: c.nif, stat: c.stat, mvola: p.mvola, orange: p.orange, airtel: p.airtel, bankHolder: p.bankHolder, bankName: p.bankName, rib: p.rib });
     DOCS.prefixes = { quote: d.quotePrefix, operation: d.operationPrefix };
     DOCS.quoteValidityDays = d.quoteValidityDays;
     DOCS.quoteNote = d.quoteNote || DEFAULTS.docs.quoteNote;
@@ -89,15 +101,16 @@
       ...D, tiers: [{ below: t.t1max, percent: t.t1 }, { below: t.t2max, percent: t.t2 }, { below: null, percent: t.t3 }],
       clientVisaFeePercent: t.clientVisaFeePercent, bankCurrencyFeePercent: t.bankCurrencyFeePercent, cardFeePercent: t.cardFeePercent,
       fixedVisaFeeMGA: t.fixedVisaFeeMGA, cashFeePercent: t.cashFeePercent, roundTo: t.roundTo,
-      ownerVisaFeePercent: k.ownerVisaFeePercent, rechargeFeePercent: k.rechargeFeePercent, ownerFixedFeeMGA: k.ownerFixedFeeMGA, ownerCardLimitMGA: k.ownerCardLimitMGA
+      ownerVisaFeePercent: k.ownerVisaFeePercent, rechargeFeePercent: k.rechargeFeePercent, ownerFixedFeeMGA: k.ownerFixedFeeMGA, ownerCardLimitMGA: k.ownerCardLimitMGA,
+      receiveVisaFeePercent: s.receive.receiveVisaFeePercent, receiveRoundTo: s.receive.receiveRoundTo
     };
     DEFAULT_DEBIT_MODE = k.debitMode;
-    MANUAL_BASE.EUR = s.rates.eur; MANUAL_BASE.USD = s.rates.usd;
+    MANUAL_BASE.EUR = s.rates.eur; MANUAL_BASE.USD = s.rates.usd; MANUAL_RECEIVE.EUR = s.rates.eurIn; MANUAL_RECEIVE.USD = s.rates.usdIn;
     el('brandName').textContent = c.name;
   }
   // Calcul, devis et listes redessinés avec les nouvelles valeurs.
   function refreshViews() {
-    try { refreshAll(); } catch (e) { console.error('E-Pay réglages :', e); }
+    try { refreshAll(); } catch (e) { console.error('HELPEO réglages :', e); }
     if (state.view === 'operations') viewHooks.operations?.();
   }
 
@@ -144,7 +157,7 @@
     setStatus(`Réglages enregistrés${S?.enabled() ? ' et envoyés à tes autres appareils' : ' sur cet appareil'}.`);
   }
   function reset() {
-    if (!confirm('Rétablir tous les réglages d’origine (entreprise, paiement, documents, tarifs, coûts, taux, messages) ?')) return;
+    if (!confirm('Rétablir tous les réglages d’origine (entreprise, règlement, documents, tarifs, réception, coûts, taux, messages) ?')) return;
     current = clone(DEFAULTS);
     if (!store(current)) return;
     apply(current); render(); refreshViews();
@@ -155,8 +168,8 @@
   // ---------- Sauvegarde : tout dans un fichier ; l'import fusionne sans doublon ----------
   const BACKUP = { quotes: 'epayQuotesV2', operations: 'epayOperationsV1', clients: 'epayClientsV1', settings: KEY, quoteSeq: 'epayQuoteSequenceV2', operationSeq: 'epayOperationSeqV1' };
   function exportBackup() {
-    const data = { app: 'E-Pay MG', version: 1, exportedAt: new Date().toISOString(), quotes: readStore(BACKUP.quotes, []), operations: readStore(BACKUP.operations, []), clients: readStore(BACKUP.clients, []), settings: readStore(BACKUP.settings, null), quoteSeq: readStore(BACKUP.quoteSeq, {}), operationSeq: readStore(BACKUP.operationSeq, {}) };
-    EpayUI.download(new Blob([JSON.stringify(data)], { type: 'application/json' }), `epay-sauvegarde-${isoDate()}.json`);
+    const data = { app: 'HELPEO', version: 1, exportedAt: new Date().toISOString(), quotes: readStore(BACKUP.quotes, []), operations: readStore(BACKUP.operations, []), clients: readStore(BACKUP.clients, []), settings: readStore(BACKUP.settings, null), quoteSeq: readStore(BACKUP.quoteSeq, {}), operationSeq: readStore(BACKUP.operationSeq, {}) };
+    EpayUI.download(new Blob([JSON.stringify(data)], { type: 'application/json' }), `helpeo-sauvegarde-${isoDate()}.json`);
     el('backupStatus').textContent = `Sauvegarde exportée : ${data.quotes.length} devis, ${data.operations.length} opérations, ${data.clients.length} clients.`;
   }
   const stamp = x => String(x?.updatedAt || x?.createdAt || '');
@@ -168,7 +181,7 @@
   async function importBackup(file) {
     try {
       const data = JSON.parse(await file.text());
-      if (data?.app !== 'E-Pay MG' || !Array.isArray(data.quotes)) throw new Error('ce fichier n’est pas une sauvegarde E-Pay MG');
+      if (!['HELPEO', 'E-Pay MG'].includes(data?.app) || !Array.isArray(data.quotes)) throw new Error('ce fichier n’est pas une sauvegarde HELPEO');
       const byNumber = (a, b) => String(b.number || '~').localeCompare(String(a.number || '~'));
       const q = mergeById(readStore(BACKUP.quotes, []), data.quotes), o = mergeById(readStore(BACKUP.operations, []), data.operations), c = mergeById(readStore(BACKUP.clients, []), data.clients);
       localStorage.setItem(BACKUP.quotes, JSON.stringify(q.list.sort(byNumber)));
@@ -209,7 +222,7 @@
     activationToken = m[1];
     history.replaceState(null, '', location.pathname + location.search); // le jeton ne reste pas dans l'adresse
     setView('settings');
-    account('Lien d’activation reconnu : choisis le mot de passe d’E-Pay. Il servira sur tous tes appareils.');
+    account('Lien d’activation reconnu : choisis le mot de passe de HELPEO. Il servira sur tous tes appareils.');
   }
   async function loadDevices() {
     const box = el('syncDevices');

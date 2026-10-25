@@ -1,6 +1,6 @@
 // Synchronisation privée des devis, opérations, clients et réglages entre appareils.
 // Les données restent d'abord dans le navigateur (l'app marche hors ligne) ; une fois connecté
-// par mot de passe, chaque modification est envoyée au serveur E-Pay et les autres appareils la reçoivent.
+// par mot de passe, chaque modification est envoyée au serveur HELPEO et les autres appareils la reçoivent.
 (() => {
   'use strict';
   const API = String(window.EPAY?.apiBase || '').replace(/\/$/, ''), SESSION_KEY = 'epaySessionV1', STATE_KEY = 'epaySyncV1';
@@ -62,7 +62,7 @@
   };
   class ApiError extends Error { constructor(message, code) { super(message); this.code = code; } }
   async function api(path, body, { auth = true, timeout = 25000, method = 'POST' } = {}) {
-    if (!API) throw new ApiError('serveur E-Pay non configuré', 0);
+    if (!API) throw new ApiError('serveur HELPEO non configuré', 0);
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeout);
     let res;
     try {
@@ -133,7 +133,7 @@
     return touched;
   }
   function runHooks(colls) {
-    for (const coll of colls) for (const fn of hooks[coll] || []) try { fn(); } catch (e) { console.error('E-Pay synchro :', e); }
+    for (const coll of colls) for (const fn of hooks[coll] || []) try { fn(); } catch (e) { console.error('HELPEO synchro :', e); }
   }
 
   async function syncNow() {

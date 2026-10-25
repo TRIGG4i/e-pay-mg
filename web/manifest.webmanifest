@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "E-Pay MG",
-  "short_name": "E-Pay MG",
-  "description": "Paiements en devise : calcul, devis, opérations, clients et suivi.",
+  "name": "HELPEO",
+  "short_name": "HELPEO",
+  "description": "On vous aide à régler ça. HELPEO, un service de PREST OFFICE SARL.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -11,30 +11,30 @@
     "minimal-ui"
   ],
   "orientation": "portrait-primary",
-  "background_color": "#0d1016",
-  "theme_color": "#0d1016",
+  "background_color": "#0A1412",
+  "theme_color": "#0E7A62",
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "assets/app-icon-192.png",
+      "src": "assets/helpeo-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/app-icon-512.png",
+      "src": "assets/helpeo-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/app-icon-maskable-512.png",
+      "src": "assets/helpeo-icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "assets/epay-mark.svg",
+      "src": "assets/helpeo-mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

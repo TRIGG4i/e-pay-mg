@@ -1,4 +1,4 @@
-// Opérations : du paiement du client au transfert confirmé — étapes, paiements, envoi, bénéficiaire, reçu.
+// Opérations : du règlement du client à l'exécution confirmée. Étapes, règlements, exécution, bénéficiaire, reçu.
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
@@ -6,10 +6,10 @@
   const { esc, uid, now } = EpayUI;
   const KEY = 'epayOperationsV1', SEQ_KEY = 'epayOperationSeqV1';
   const STEPS = [
-    { id: 'attente', label: 'Paiement attendu', tone: 'warn', client: 'nous attendons votre paiement pour lancer le transfert' },
-    { id: 'paye', label: 'Payée, à envoyer', tone: 'accent', client: 'paiement bien reçu, votre transfert est en préparation' },
-    { id: 'envoye', label: 'Transfert envoyé', tone: 'accent', client: 'transfert envoyé au bénéficiaire' },
-    { id: 'confirme', label: 'Terminée', tone: 'ok', client: 'transfert reçu par le bénéficiaire. Merci pour votre confiance' }
+    { id: 'attente', label: 'Règlement attendu', tone: 'warn', client: 'nous attendons votre règlement pour lancer l’opération' },
+    { id: 'paye', label: 'Réglée, à exécuter', tone: 'accent', client: 'règlement bien reçu, votre opération est en préparation' },
+    { id: 'envoye', label: 'Exécutée', tone: 'accent', client: 'opération effectuée' },
+    { id: 'confirme', label: 'Terminée', tone: 'ok', client: 'opération confirmée. Merci pour votre confiance' }
   ];
   const CANCELLED = { id: 'annulee', label: 'Annulée', tone: 'muted', client: 'opération annulée' };
   const step = id => STEPS.find(s => s.id === id) || (id === 'annulee' ? CANCELLED : STEPS[0]);
@@ -28,7 +28,7 @@
 
   let ops = load(), editing = null, draft = null;
   const listeners = new Set();
-  const emit = () => { for (const fn of listeners) try { fn(); } catch (e) { console.error('E-Pay opérations :', e); } };
+  const emit = () => { for (const fn of listeners) try { fn(); } catch (e) { console.error('HELPEO opérations :', e); } };
   function saveAll() {
     ops.sort(byNumber);
     try { localStorage.setItem(KEY, JSON.stringify(ops)); } catch { showToast('Mémoire du navigateur pleine : exporte une sauvegarde (Suivi › Réglages).', 'error'); }
@@ -82,7 +82,7 @@
     return o;
   }
   function fromQuote(q) {
-    ensureForQuote(q).then(o => { renderList(); open(o.id); showToast(`Opération ${o.number} : indique le bénéficiaire, puis enregistre le paiement du client.`, 'info'); })
+    ensureForQuote(q).then(o => { renderList(); open(o.id); showToast(`Opération ${o.number} : indique le bénéficiaire, puis enregistre le règlement du client.`, 'info'); })
       .catch(err => showToast(`Opération impossible : ${err.message || 'erreur'}`, 'error'));
   }
 
@@ -91,7 +91,7 @@
     const f = figures(o), ref = o.execution?.ref;
     return {
       client: o.client || '', operation: o.number, statut: step(o.status).client, montant: fmtCurrency(Number(o.amount) || 0, o.currency, 2),
-      beneficiaire: o.beneficiary?.name || '', reference: ref ? ` Référence du transfert : ${ref}.` : '',
+      beneficiaire: o.beneficiary?.name || '', reference: ref ? ` Référence : ${ref}.` : '',
       total: fmtMGA(f.total, 0), paye: fmtMGA(f.paid, 0), reste: fmtMGA(f.remaining, 0), entreprise: [OFFICE.name, OFFICE.phone].filter(Boolean).join(' · ')
     };
   }
@@ -102,19 +102,19 @@
   function receiptRows(o) {
     const b = o.beneficiary || {};
     const rows = [
-      { label: 'Montant à envoyer', detail: [b.name && `à ${b.name}`, o.transferType === 'cash' ? 'Espèces / Mobile Money' : 'Dépôt bancaire'].filter(Boolean).join(' · '), value: fmtCurrency(Number(o.amount) || 0, o.currency, 2) },
+      { label: 'Montant en devise', detail: [b.name && `pour ${b.name}`, o.transferType === 'cash' ? 'Espèces / Mobile Money' : 'Dépôt bancaire'].filter(Boolean).join(' · '), value: fmtCurrency(Number(o.amount) || 0, o.currency, 2) },
       { label: 'Taux appliqué', detail: `1 ${o.currency}`, value: o.rate ? `${fmtNumber(Number(o.rate), 2)} MGA` : '—' },
       { label: 'Total de l’opération', detail: 'Frais inclus', value: fmtMGA(figures(o).total, 0) }
     ];
-    for (const p of o.payments || []) rows.push({ label: Number(p.amount) < 0 ? 'Remboursement' : 'Paiement reçu', detail: [displayDate(p.date), METHODS[p.method] || p.method, p.ref].filter(Boolean).join(' · '), value: fmtMGA(Number(p.amount) || 0, 0) });
-    if (o.execution?.ref) rows.push({ label: 'Référence du transfert', detail: displayDate(o.execution.date), value: o.execution.ref });
+    for (const p of o.payments || []) rows.push({ label: Number(p.amount) < 0 ? 'Remboursement' : 'Règlement reçu', detail: [displayDate(p.date), METHODS[p.method] || p.method, p.ref].filter(Boolean).join(' · '), value: fmtMGA(Number(p.amount) || 0, 0) });
+    if (o.execution?.ref) rows.push({ label: 'Référence', detail: displayDate(o.execution.date), value: o.execution.ref });
     return rows;
   }
   function receiptData(o) {
     const f = figures(o);
     return {
       kind: 'receipt', title: 'REÇU', number: o.number, date: isoDate(), client: o.client, phone: o.phone, address: o.address, rows: receiptRows(o),
-      totalLabel: f.toRefund ? 'À rembourser' : f.remaining ? 'Total à payer' : 'Total payé', total: f.toRefund || f.remaining || f.paid,
+      totalLabel: f.toRefund ? 'À rembourser' : f.remaining ? 'Reste à régler' : 'Total réglé', total: f.toRefund || f.remaining || f.paid,
       note: `Statut : ${step(o.status).label}.`
     };
   }
@@ -125,18 +125,18 @@
   function printReceipt(o) {
     const d = receiptData(o);
     const rows = d.rows.map(r => `<tr><td>${esc(r.label)}</td><td>${esc(r.detail)}</td><td>${esc(r.value)}</td></tr>`).join('');
-    el('printStage').innerHTML = `<article class="print-page">${printHeader('REÇU', `${o.number} · ${displayDate(d.date)}`)}${printClient(o)}<table class="print-table"><thead><tr><th>Description</th><th>Détail</th><th>Montant</th></tr></thead><tbody>${rows}</tbody></table><div class="print-total"><span>${esc(d.totalLabel)}</span><strong>${esc(fmtMGA(d.total, 0))}</strong></div><p class="print-note">${esc(d.note)}</p>${printPayment()}<footer class="print-footer"><span>${esc(OFFICE.name)} · Reçu généré électroniquement</span><span>${esc(o.number)}</span></footer></article>`;
+    el('printStage').innerHTML = `<article class="print-page">${printHeader('REÇU', `${o.number} · ${displayDate(d.date)}`)}${printClient(o)}<table class="print-table"><thead><tr><th>Description</th><th>Détail</th><th>Montant</th></tr></thead><tbody>${rows}</tbody></table><div class="print-total"><span>${esc(d.totalLabel)}</span><strong>${esc(fmtMGA(d.total, 0))}</strong></div><p class="print-note">${esc(d.note)}</p>${printPayment()}${printFooter()}</article>`;
     setTimeout(() => window.print(), 60);
   }
 
-  // ---------- Étapes et paiements ----------
+  // ---------- Étapes et règlements ----------
   function advance(o, status) { o.status = status; (o.events ||= []).push({ at: now(), status }); }
   function setStatus(o, status) {
     if (!o || o.status === status) return;
     advance(o, status); touch(o); saveAll();
     showToast(`${o.number} : ${step(status).label}.`, 'info', o.phone ? { label: 'Prévenir le client', run: () => notify(o) } : null);
   }
-  // Paiement complet → « Payée, à envoyer » ; remboursement complet d'une opération annulée : rien à faire de plus.
+  // Règlement complet → « Réglée, à exécuter » ; remboursement complet d'une opération annulée : rien à faire de plus.
   function afterPayment(o) {
     const f = figures(o);
     if (o.status === 'attente' && f.total > 0 && f.paid >= f.total) advance(o, 'paye');
@@ -146,18 +146,18 @@
     (o.payments ||= []).push({ id: uid(), date: p.date || isoDate(), amount: Math.round(p.amount), method: p.method || '', ref: p.ref || '' });
     afterPayment(o);
   }
-  // Paiement intégral seulement (pas d'acompte) : le montant est toujours le total restant de l'opération.
+  // Règlement intégral seulement (pas d'acompte) : le montant est toujours le total restant de l'opération.
   function readPayment() { return { method: el('opPayMethod')?.value || 'mvola', date: el('opPayDate')?.value || isoDate(), ref: el('opPayRef')?.value.trim() || '' }; }
   function recordExecution(o) {
     const debit = Math.round(money(el('opExecDebit')?.value));
     if (!debit) { showToast('Indique le montant débité sur ta carte (MGA).', 'warn'); return false; }
     const unpaid = figures(o).remaining;
-    if (!o.execution && unpaid > 0 && !confirm(`Le client n’a pas encore payé la totalité (${fmtMGA(unpaid, 0)} à encaisser). Enregistrer l’envoi quand même ?`)) return false;
+    if (!o.execution && unpaid > 0 && !confirm(`Le client n’a pas encore tout réglé (${fmtMGA(unpaid, 0)} à encaisser). Enregistrer l’exécution quand même ?`)) return false;
     o.execution = { date: el('opExecDate').value || isoDate(), debitMGA: debit, channel: el('opExecChannel').value, ref: el('opExecRef').value.trim(), note: o.execution?.note || '' };
     const sentNow = o.status === 'attente' || o.status === 'paye';
     if (sentNow) advance(o, 'envoye');
     touch(o); saveAll();
-    showToast(sentNow ? `${o.number} : transfert envoyé.` : `${o.number} : envoi mis à jour.`, 'info', sentNow && o.phone ? { label: 'Prévenir le client', run: () => notify(o) } : null);
+    showToast(sentNow ? `${o.number} : opération exécutée.` : `${o.number} : exécution mise à jour.`, 'info', sentNow && o.phone ? { label: 'Prévenir le client', run: () => notify(o) } : null);
     return true;
   }
 
@@ -165,14 +165,14 @@
   function renderList() {
     const term = el('operationSearch').value.trim().toLowerCase(), filter = el('operationFilter').value;
     const open = ops.filter(isOpen), toCollect = open.reduce((s, o) => s + figures(o).remaining, 0), toSend = ops.filter(o => o.status === 'paye').length;
-    el('operationSummary').textContent = ops.length ? `${open.length} en cours · ${fmtMGA(toCollect, 0)} à encaisser${toSend ? ` · ${toSend} à envoyer` : ''}` : '';
+    el('operationSummary').textContent = ops.length ? `${open.length} en cours · ${fmtMGA(toCollect, 0)} à encaisser${toSend ? ` · ${toSend} à exécuter` : ''}` : '';
     const shown = ops.filter(o => (filter === 'all' || (filter === 'active' ? isOpen(o) : o.status === filter))
       && (!term || [o.number, o.client, o.phone, o.quoteRef, o.beneficiary?.name, o.beneficiary?.reference, o.execution?.ref, String(o.amount), o.currency].join(' ').toLowerCase().includes(term)));
     el('operationsList').innerHTML = shown.length ? '<div class="quote-list">' + shown.map(o => {
       const f = figures(o);
       return '<div class="quote-item" data-open-op="' + esc(o.id) + '"><div class="quote-icon"><svg class="icon"><use href="#i-transfer"/></svg></div>'
         + '<div class="quote-main"><strong>' + esc(o.client || o.number) + '</strong><span>' + esc([o.number, fmtCurrency(Number(o.amount) || 0, o.currency, 0), o.beneficiary?.name].filter(Boolean).join(' · ')) + '</span>' + chip(step(o.status)) + '</div>'
-        + '<div class="quote-amount">' + esc(fmtMGA(f.total, 0)) + (f.toRefund ? '<small>à rembourser</small>' : f.remaining && o.status !== 'attente' ? '<small>non payée</small>' : '') + '</div></div>';
+        + '<div class="quote-amount">' + esc(fmtMGA(f.total, 0)) + (f.toRefund ? '<small>à rembourser</small>' : f.remaining && o.status !== 'attente' ? '<small>non réglée</small>' : '') + '</div></div>';
     }).join('') + '</div>'
       : '<p class="invoice-empty">' + (ops.length ? 'Aucune opération ne correspond.' : 'Une opération naît d’un devis accepté (« Créer l’opération ») ou du bouton +.') + '</p>';
   }
@@ -191,8 +191,8 @@
   function infoCard(o) {
     return '<div class="form-card"><h3 class="invoice-h3">Client et montant</h3><div class="invoice-grid">'
       + field('Client', 'client', o.client || '', 'text', true, ' list="clientNames" autocomplete="off"') + field('Téléphone', 'phone', o.phone || '', 'tel') + field('Adresse', 'address', o.address || '')
-      + select('Devise', 'currency', o.currency || 'EUR', { EUR: 'EUR', USD: 'USD' }) + field('Montant à envoyer', 'amount', o.amount ? String(o.amount).replace('.', ',') : '', 'money')
-      + select('Paiement du client', 'transferType', o.transferType || 'bank', { bank: 'Dépôt bancaire', cash: 'Espèces / Mobile Money' }) + field('Total client (MGA)', 'totalMGA', o.totalMGA ? String(Math.round(o.totalMGA)) : '', 'money')
+      + select('Devise', 'currency', o.currency || 'EUR', { EUR: 'EUR', USD: 'USD' }) + field('Montant en devise', 'amount', o.amount ? String(o.amount).replace('.', ',') : '', 'money')
+      + select('Règlement du client', 'transferType', o.transferType || 'bank', { bank: 'Dépôt bancaire', cash: 'Espèces / Mobile Money' }) + field('Total client (MGA)', 'totalMGA', o.totalMGA ? String(Math.round(o.totalMGA)) : '', 'money')
       + field('Note interne', 'note', o.note || '', 'textarea', true)
       + '</div>' + (draft ? '<p class="field-hint">Le total se calcule au taux du jour ; tu peux le corriger.</p>' : '')
       + (o.quoteId || o.clientId ? '<div class="backup-actions order-gap">' + (o.quoteId ? '<button type="button" class="secondary" data-act="quote">Devis ' + esc(o.quoteRef || '') + '</button>' : '<span></span>')
@@ -208,7 +208,7 @@
   function statusCard(o, f) {
     const s = step(o.status), idx = stepIndex(o.status);
     const since = [...(o.events || [])].reverse().find(e => e.status === o.status)?.at || o.createdAt;
-    const nextLabel = { attente: `Paiement intégral reçu${f.remaining ? ` (${fmtMGA(f.remaining, 0)})` : ''}`, paye: 'Envoi effectué →', envoye: 'Réception confirmée →' }[o.status];
+    const nextLabel = { attente: `Règlement intégral reçu${f.remaining ? ` (${fmtMGA(f.remaining, 0)})` : ''}`, paye: 'Opération exécutée →', envoye: 'Confirmée par le client →' }[o.status];
     const progress = '<div class="order-progress" aria-hidden="true">' + STEPS.map((x, i) => '<span class="' + (o.status !== 'annulee' && i <= idx ? 'done' : '') + '"></span>').join('') + '</div>';
     return '<div class="form-card">' + progress
       + '<div class="order-step">' + chip(s) + '<span>' + esc(EpayUI.ago(since)) + ' · étape ' + (idx >= 0 ? `${idx + 1}/${STEPS.length}` : '—') + '</span></div>'
@@ -218,30 +218,30 @@
   }
   function moneyCard(o, f) {
     const pays = (o.payments || []).map(p => '<div class="pay-row"><div><strong>' + esc(fmtMGA(Number(p.amount) || 0, 0)) + '</strong><span>' + esc([Number(p.amount) < 0 ? 'Remboursement' : '', displayDate(p.date), METHODS[p.method] || p.method, p.ref].filter(Boolean).join(' · ')) + '</span></div>'
-      + '<button type="button" data-del-pay="' + esc(p.id) + '" aria-label="Supprimer ce paiement">×</button></div>').join('');
+      + '<button type="button" data-del-pay="' + esc(p.id) + '" aria-label="Supprimer ce règlement">×</button></div>').join('');
     const due = f.remaining > 0 && o.status !== 'annulee';
     const form = due || f.toRefund ? '<div class="invoice-grid order-gap">'
       + '<label>Moyen<select id="opPayMethod">' + Object.entries(METHODS).map(([k, v]) => '<option value="' + k + '">' + esc(v) + '</option>').join('') + '</select></label>'
       + '<label>Date<input id="opPayDate" type="date" value="' + isoDate() + '"></label><label class="invoice-wide">Référence<input id="opPayRef" type="text" placeholder="N° de transaction"></label></div>' : '';
     const actions = f.toRefund ? '<div class="backup-actions order-gap"><button type="button" class="secondary" data-act="refund">Rembourser ' + esc(fmtMGA(f.toRefund, 0)) + '</button><span></span></div>'
-      : due ? '<div class="backup-actions order-gap"><button type="button" class="btn-ink" data-act="pay">Paiement reçu : ' + esc(fmtMGA(f.remaining, 0)) + '</button>'
+      : due ? '<div class="backup-actions order-gap"><button type="button" class="btn-ink" data-act="pay">Règlement reçu : ' + esc(fmtMGA(f.remaining, 0)) + '</button>'
         + '<button type="button" class="secondary" data-act="remind"' + (o.phone ? '' : ' disabled') + '>Relancer (WhatsApp)</button></div>' : '';
-    return '<div class="form-card"><h3 class="invoice-h3">Paiement du client</h3>'
+    return '<div class="form-card"><h3 class="invoice-h3">Règlement du client</h3>'
       + '<div class="order-figures"><div><span>Total (MGA)</span><strong>' + esc(fmtNumber(f.total, 0)) + '</strong></div><div><span>Encaissé</span><strong>' + esc(fmtNumber(f.paid, 0)) + '</strong></div><div><span>' + (f.toRefund ? 'À rembourser' : 'À encaisser') + '</span><strong class="' + (f.remaining || f.toRefund ? 'due' : 'ok') + '">' + esc(fmtNumber(f.toRefund || f.remaining, 0)) + '</strong></div></div>'
       + (pays ? '<div class="pay-list">' + pays + '</div>' : '')
-      + (due ? '<p class="field-hint">Paiement intégral avant l’envoi : pas d’acompte.</p>' : '') + form + actions + '</div>';
+      + (due ? '<p class="field-hint">Règlement de la totalité avant l’exécution, sans acompte.</p>' : '') + form + actions + '</div>';
   }
   function execCard(o, f) {
     const x = o.execution || {}, channel = x.channel || DEFAULT_DEBIT_MODE;
     const debit = x.debitMGA || estimate(o.amount, o.currency, channel);
-    return '<div class="form-card"><h3 class="invoice-h3">Transfert</h3>'
-      + '<div class="order-figures"><div><span>À envoyer</span><strong>' + esc(fmtCurrency(Number(o.amount) || 0, o.currency, 2)) + '</strong></div><div><span>' + (f.costReal ? 'Coût réel' : 'Coût estimé') + '</span><strong>' + esc(fmtNumber(f.cost, 0)) + '</strong></div><div><span>Bénéfice</span><strong class="' + (f.profit < 0 ? 'due' : 'ok') + '">' + esc(fmtNumber(f.profit, 0)) + '</strong></div></div>'
-      + '<div class="invoice-grid order-gap"><label>Date d’envoi<input id="opExecDate" type="date" value="' + esc(x.date || isoDate()) + '"></label>'
+    return '<div class="form-card"><h3 class="invoice-h3">Exécution</h3>'
+      + '<div class="order-figures"><div><span>Montant</span><strong>' + esc(fmtCurrency(Number(o.amount) || 0, o.currency, 2)) + '</strong></div><div><span>' + (f.costReal ? 'Coût réel' : 'Coût estimé') + '</span><strong>' + esc(fmtNumber(f.cost, 0)) + '</strong></div><div><span>Bénéfice</span><strong class="' + (f.profit < 0 ? 'due' : 'ok') + '">' + esc(fmtNumber(f.profit, 0)) + '</strong></div></div>'
+      + '<div class="invoice-grid order-gap"><label>Date d’exécution<input id="opExecDate" type="date" value="' + esc(x.date || isoDate()) + '"></label>'
       + '<label>Débité (MGA)<input id="opExecDebit" type="text" inputmode="decimal" value="' + esc(debit || '') + '"></label>'
       + '<label>Carte<select id="opExecChannel">' + Object.entries(CHANNELS).map(([k, v]) => '<option value="' + k + '"' + (k === channel ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></label>'
-      + '<label>Référence du transfert<input id="opExecRef" type="text" value="' + esc(x.ref || '') + '" autocomplete="off"></label></div>'
+      + '<label>Référence<input id="opExecRef" type="text" value="' + esc(x.ref || '') + '" autocomplete="off"></label></div>'
       + (o.execution ? '' : '<p class="field-hint">Débit estimé au taux interne du jour (' + esc(debitPlan(calcOwner(Number(o.amount) || 0, o.currency, channel))) + ') : corrige-le avec le montant réellement débité.</p>')
-      + '<button type="button" class="secondary order-wide order-gap" data-act="exec">' + (o.execution ? 'Mettre à jour l’envoi' : 'Enregistrer l’envoi') + '</button></div>';
+      + '<button type="button" class="secondary order-wide order-gap" data-act="exec">' + (o.execution ? 'Mettre à jour l’exécution' : 'Enregistrer l’exécution') + '</button></div>';
   }
   function receiptCard() {
     return '<div class="form-card"><h3 class="invoice-h3">Reçu pour le client</h3><div class="backup-actions">'
@@ -302,8 +302,8 @@
     const o = draft; if (!o) return;
     readInfo(o);
     if (!o.client) { showToast('Indique le nom du client.', 'warn'); return; }
-    if (!(o.amount > 0)) { showToast('Indique le montant à envoyer (en devise).', 'warn'); return; }
-    if (!(o.totalMGA > 0) && !recalc(o)) { showToast('Indique le total à payer par le client.', 'warn'); return; }
+    if (!(o.amount > 0)) { showToast('Indique le montant en devise.', 'warn'); return; }
+    if (!(o.totalMGA > 0) && !recalc(o)) { showToast('Indique le total client.', 'warn'); return; }
     if (!o.rate) o.rate = clientRateFor(o.currency);
     Object.assign(o, { id: uid(), number: await allocate(), createdAt: now(), updatedAt: now(), status: 'attente', payments: [], execution: null, events: [{ at: now(), status: 'attente' }], estCostMGA: estimate(o.amount, o.currency) });
     linkClient(o);
@@ -311,7 +311,7 @@
     showToast(`Opération ${o.number} créée.`, 'info');
   }
   function removeOp(o) {
-    if (!confirm(`Supprimer l’opération ${o.number} ? Ses paiements enregistrés disparaissent avec elle.`)) return;
+    if (!confirm(`Supprimer l’opération ${o.number} ? Ses règlements enregistrés disparaissent avec elle.`)) return;
     const i = ops.indexOf(o); ops.splice(i, 1);
     const q = state.quotes.find(x => x.operationId === o.id);
     if (q) { delete q.operationId; persistQuotes(); renderQuotes(); }
@@ -351,7 +351,7 @@
     if (act === 'next') {
       if (o.status === 'attente') {
         const f = figures(o);
-        if (f.remaining > 0) { const p = readPayment(); addPayment(o, { ...p, amount: f.remaining }); showToast(`${fmtMGA(f.remaining, 0)} encaissés : ${o.number} est à envoyer.`, 'info'); }
+        if (f.remaining > 0) { const p = readPayment(); addPayment(o, { ...p, amount: f.remaining }); showToast(`${fmtMGA(f.remaining, 0)} encaissés : ${o.number} est à exécuter.`, 'info'); }
         else setStatus(o, 'paye');
       } else if (o.status === 'paye') { if (!recordExecution(o)) return; }
       else if (o.status === 'envoye') setStatus(o, 'confirme');
@@ -359,12 +359,12 @@
     else if (act === 'remind') remind(o);
     else if (act === 'pay') {
       const f = figures(o); if (!(f.remaining > 0)) return;
-      addPayment(o, { ...readPayment(), amount: f.remaining }); showToast(`${fmtMGA(f.remaining, 0)} encaissés : ${o.number} est payée en totalité.`, 'info');
+      addPayment(o, { ...readPayment(), amount: f.remaining }); showToast(`${fmtMGA(f.remaining, 0)} encaissés : ${o.number} est réglée en totalité.`, 'info');
     } else if (act === 'refund') {
       const f = figures(o); if (!f.toRefund || !confirm(`Enregistrer le remboursement de ${fmtMGA(f.toRefund, 0)} au client ?`)) return;
       const p = readPayment(); addPayment(o, { ...p, amount: -f.toRefund, ref: p.ref || 'Remboursement' });
     } else if (b.dataset.delPay) {
-      if (!confirm('Supprimer ce paiement ?')) return;
+      if (!confirm('Supprimer ce règlement ?')) return;
       o.payments = (o.payments || []).filter(p => p.id !== b.dataset.delPay); touch(o); saveAll();
     } else if (act === 'exec') { if (!recordExecution(o)) return; }
     else if (act === 'receipt-print') { printReceipt(o); return; }

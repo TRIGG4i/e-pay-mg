@@ -1,13 +1,12 @@
-"""Génère le logo E-Pay MG (SVG vectoriels, texte converti en tracés).
+"""Génère l'identité HELPEO (SVG vectoriels, texte converti en tracés).
 
-Même famille que eVidy : tuile encre, tracé blanc, accent de couleur.
-Monogramme : « ϵ » blanc (E de E-Pay, forme des signes monétaires) traversé par
-une barre bleue qui sort vers la droite (le tiret de E-Pay, le paiement qui part).
+Monogramme : un « H » blanc dont la barre est un câble corail tendu entre deux piliers,
+sur une tuile verte. C'est un pont : on aide à passer ce qui bloque. C'est aussi un
+sourire, celui du problème réglé. Logotype : HELPEO, le O en corail, puis le slogan.
 
 Usage : python3 brand/generate.py <dossier-polices> web/assets, puis brand/icons.sh.
-Dépendances : uharfbuzz, fonttools ; police Manrope.ttf (variable, Google Fonts, licence OFL).
+Dépendances : uharfbuzz, fonttools ; police PlusJakartaSans.ttf (variable, Google Fonts, licence OFL).
 """
-import math
 import sys
 from pathlib import Path
 import uharfbuzz as hb
@@ -20,16 +19,15 @@ FONTS = Path(sys.argv[1])
 OUT = Path(sys.argv[2])
 OUT.mkdir(parents=True, exist_ok=True)
 
-INK = "#0B0D12"
-BLUE_A, BLUE_B = "#9AABFF", "#5B78FF"
-BLUE_TEXT, BLUE_TEXT_DARK = "#4560F0", "#8EA1FF"
+GREEN_A, GREEN_B = "#13866C", "#0A4F42"   # tuile : vert HELPEO, du clair au profond
+CORAL = "#FF7A50"                          # le câble du pont, le O
+INK, INK_SUB = "#13231F", "#4F6660"        # texte sur fond clair
+WHITE_SUB = "#A9C2BA"                      # sous-titre sur fond sombre
+TAG = "On vous aide à régler ça"
 
-# Géométrie sur une grille de 512.
-CX, CY, R, SW = 216, 256, 112, 56          # anneau : centre, rayon (axe), épaisseur
-GAP = 18                                     # jour entre la barre et les extrémités de l'anneau
-THETA = math.degrees(math.asin((SW / 2 + SW / 2 + GAP) / R))  # ouverture à droite, de part et d'autre
-BAR_X0 = CX - R + SW / 2 + GAP + SW / 2      # barre : part de l'intérieur, sans toucher l'anneau
-BAR_X1 = 422                                 # … et sort à droite
+# Géométrie sur une grille de 512 : deux tours, un câble qui pend (courbe de Bézier quadratique).
+LX, RX, TOP, BOT, SW = 168, 344, 140, 372, 60
+CABLE_Y, CABLE_CTRL = 222, 350             # attaches du câble, point de contrôle (point bas réel : 286)
 
 
 def instance(name, wght):
@@ -43,14 +41,13 @@ def instance(name, wght):
 
 def text_paths(font_path, text, size, x0, baseline, tracking=0.0):
     """Tracés SVG par caractère (crénage HarfBuzz) : [(cluster, d)], largeur."""
-    blob = hb.Blob.from_file_path(str(font_path))
-    face = hb.Face(blob)
+    face = hb.Face(hb.Blob.from_file_path(str(font_path)))
     font = hb.Font(face)
     upem = face.upem
     buf = hb.Buffer()
     buf.add_str(text)
     buf.guess_segment_properties()
-    hb.shape(font, buf, {"kern": True, "liga": True})
+    hb.shape(font, buf, {"kern": True})
     tt = TTFont(font_path)
     gs = tt.getGlyphSet()
     order = tt.getGlyphOrder()
@@ -66,68 +63,65 @@ def text_paths(font_path, text, size, x0, baseline, tracking=0.0):
 
 
 def mark_shapes(s=512, ox=0, oy=0, bleed=False):
+    """Tuile + H. En plein cadre (masquable), le H est réduit pour tenir dans la zone sûre d'Android."""
     k = s / 512
+    shrink = 0.84 if bleed else 1
+    P = lambda x, y: f"{ox + (256 + (x - 256) * shrink) * k:.2f},{oy + (256 + (y - 256) * shrink) * k:.2f}"
+    sw = SW * shrink * k
     r = 0 if bleed else 118 * k
-    P = lambda x, y: f"{ox + x * k:.2f},{oy + y * k:.2f}"
-    t = math.radians(THETA)
-    top = P(CX + R * math.cos(t), CY - R * math.sin(t))
-    bot = P(CX + R * math.cos(t), CY + R * math.sin(t))
-    ring = f"M{top} A{R * k:.2f},{R * k:.2f} 0 1 0 {bot}"
-    bar = f"M{P(BAR_X0, CY)} L{P(BAR_X1, CY)}"
+    pillars = f"M{P(LX, TOP)}L{P(LX, BOT)}M{P(RX, TOP)}L{P(RX, BOT)}"
+    cable = f"M{P(LX, CABLE_Y)}Q{P(256, CABLE_CTRL)} {P(RX, CABLE_Y)}"
     return f"""
-  <rect x="{ox:.2f}" y="{oy:.2f}" width="{s:.2f}" height="{s:.2f}" rx="{r:.2f}" fill="url(#epInk)"/>
-  <rect x="{ox + 1.5 * k:.2f}" y="{oy + 1.5 * k:.2f}" width="{s - 3 * k:.2f}" height="{s - 3 * k:.2f}" rx="{max(r - 1.5 * k, 0):.2f}" fill="none" stroke="#FFFFFF" stroke-opacity=".07" stroke-width="{3 * k:.2f}"/>
-  <path d="{ring}" fill="none" stroke="url(#epStroke)" stroke-width="{SW * k:.2f}" stroke-linecap="round"/>
-  <path d="{bar}" fill="none" stroke="url(#epBlue)" stroke-width="{SW * k:.2f}" stroke-linecap="round"/>"""
+  <rect x="{ox:.2f}" y="{oy:.2f}" width="{s:.2f}" height="{s:.2f}" rx="{r:.2f}" fill="url(#hpTile)"/>
+  <path d="{pillars}" fill="none" stroke="#FFFFFF" stroke-width="{sw:.2f}" stroke-linecap="round"/>
+  <path d="{cable}" fill="none" stroke="{CORAL}" stroke-width="{sw:.2f}" stroke-linecap="round"/>"""
 
 
 def defs(s=512, ox=0, oy=0):
-    k = s / 512
     return f"""
   <defs>
-    <linearGradient id="epInk" x1="{ox:.2f}" y1="{oy:.2f}" x2="{ox + s:.2f}" y2="{oy + s:.2f}" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1D2330"/><stop offset=".55" stop-color="#0E1118"/><stop offset="1" stop-color="#06070A"/>
-    </linearGradient>
-    <linearGradient id="epStroke" x1="{ox + 114 * k:.2f}" y1="{oy + 368 * k:.2f}" x2="{ox + 338 * k:.2f}" y2="{oy + 144 * k:.2f}" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E9ECF2"/>
-    </linearGradient>
-    <linearGradient id="epBlue" x1="{ox + BAR_X0 * k:.2f}" y1="0" x2="{ox + BAR_X1 * k:.2f}" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="{BLUE_A}"/><stop offset="1" stop-color="{BLUE_B}"/>
+    <linearGradient id="hpTile" x1="{ox:.2f}" y1="{oy:.2f}" x2="{ox + s:.2f}" y2="{oy + s:.2f}" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="{GREEN_A}"/><stop offset="1" stop-color="{GREEN_B}"/>
     </linearGradient>
   </defs>"""
 
 
-def svg(w, h, body, title="E-Pay MG"):
+def svg(w, h, body, title="HELPEO"):
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w:.0f} {h:.0f}" width="{w:.0f}" height="{h:.0f}" '
             f'role="img" aria-label="{title}"><title>{title}</title>{body}\n</svg>\n')
 
 
-bold = instance("Manrope", 800)
-semi = instance("Manrope", 700)
-
-(OUT / "epay-mark.svg").write_text(svg(512, 512, defs() + mark_shapes()))
-(OUT / "epay-mark-maskable.svg").write_text(svg(512, 512, defs() + mark_shapes(bleed=True)))
+heavy = instance("PlusJakartaSans", 800)
+semi = instance("PlusJakartaSans", 600)
 
 
-def word(x0, baseline, ink, blue):
-    """« E-Pay » (tiret bleu, comme la barre du monogramme) + « MG »."""
-    glyphs, w = text_paths(bold, "E-Pay", 112, x0, baseline, tracking=-0.018)
-    dash = "".join(d for c, d in glyphs if c == 1)
-    rest = "".join(d for c, d in glyphs if c != 1)
-    mg_x = x0 + w + 22
-    mg, mg_w = text_paths(semi, "MG", 46, mg_x, baseline, tracking=0.12)
-    body = f'\n  <path d="{rest}" fill="{ink}"/>\n  <path d="{dash}" fill="{blue}"/>\n  <path d="{"".join(d for _, d in mg)}" fill="{blue}"/>'
-    return body, mg_x + mg_w + 4
+def word(x0, baseline, ink, size=104):
+    """« HELPEO » : lettres à l'encre, O en corail."""
+    glyphs, w = text_paths(heavy, "HELPEO", size, x0, baseline, tracking=0.015)
+    letters = "".join(d for c, d in glyphs if c != 5)
+    o = "".join(d for c, d in glyphs if c == 5)
+    return f'\n  <path d="{letters}" fill="{ink}"/>\n  <path d="{o}" fill="{CORAL}"/>', w
 
 
-def lockup(ink, blue, name):
-    m = 160
-    body, W = word(m + 40, 116, ink, blue)
-    (OUT / name).write_text(svg(W, 160, defs(m) + mark_shapes(m) + body))
+def tagline(x0, baseline, color, size=22):
+    """Slogan sous le logotype, plus discret que lui."""
+    glyphs, _ = text_paths(semi, TAG, size, x0, baseline, tracking=0.005)
+    return f'\n  <path d="{"".join(d for _, d in glyphs)}" fill="{color}"/>'
 
 
-lockup(INK, BLUE_TEXT, "epay-logo.svg")
-lockup("#FFFFFF", BLUE_TEXT_DARK, "epay-logo-light.svg")
-body, W = word(0, 104, INK, BLUE_TEXT)
-(OUT / "epay-wordmark.svg").write_text(svg(W, 132, body))
-print(f"ouverture ±{THETA:.1f}°, barre {BAR_X0:.0f}→{BAR_X1}", sorted(p.name for p in OUT.glob("*.svg")))
+(OUT / "helpeo-mark.svg").write_text(svg(512, 512, defs() + mark_shapes()))
+(OUT / "helpeo-mark-maskable.svg").write_text(svg(512, 512, defs() + mark_shapes(bleed=True)))
+
+
+def lockup(ink, sub, name):
+    m, x0 = 160, 196
+    body, w = word(x0, 96, ink)
+    body += tagline(x0 + 4, 138, sub)
+    (OUT / name).write_text(svg(x0 + w + 6, 160, defs(m) + mark_shapes(m) + body))
+
+
+lockup(INK, INK_SUB, "helpeo-logo.svg")
+lockup("#FFFFFF", WHITE_SUB, "helpeo-logo-light.svg")
+body, w = word(0, 100, INK)
+(OUT / "helpeo-wordmark.svg").write_text(svg(w + 4, 124, body))
+print(sorted(p.name for p in OUT.glob("helpeo-*.svg")))

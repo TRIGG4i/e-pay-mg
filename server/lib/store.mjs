@@ -4,7 +4,7 @@ import { mkdirSync, readdirSync, rmSync, chmodSync } from 'node:fs';
 import { promisify } from 'node:util';
 import path from 'node:path';
 
-// Données de gestion E-Pay MG (devis, opérations, clients, réglages) d'un seul
+// Données de gestion HELPEO (devis, opérations, clients, réglages) d'un seul
 // propriétaire, synchronisées entre ses appareils. SQLite intégré à Node, un fichier.
 export const COLLECTIONS = ['quotes', 'operations', 'clients', 'settings'];
 export const SEQ_KINDS = { quote: 'quotes', operation: 'operations' };

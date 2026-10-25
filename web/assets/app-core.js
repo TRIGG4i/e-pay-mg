@@ -1,12 +1,14 @@
-// Cœur E-Pay MG : taux VISA (servis par le serveur E-Pay), calcul client et interne, devis.
+// Cœur de HELPEO : taux VISA (servis par le serveur HELPEO), calcul client et interne, devis.
 // Script classique : setView, closeQuote et $ restent globaux (motion-polish.js les enveloppe).
 const P = window.EpayPricing;
 
 // Émetteur, documents et tarifs : valeurs d'origine, remplacées par Réglages (settings.js).
-const OFFICE = { name: 'E-Pay MG', slogan: 'Paiements en devise', phone: '', email: '', address: '', nif: '', stat: '', mvola: '', orange: '', airtel: '', bankHolder: '', bankName: '', rib: '' };
-const DOCS = { prefixes: { quote: 'EP', operation: 'OP' }, quoteValidityDays: 0, quoteNote: 'Le total correspond au montant converti augmenté des frais de service et de traitement applicables.' };
+const OFFICE = { name: 'HELPEO', slogan: 'On vous aide à régler ça', legal: 'HELPEO, un service de PREST OFFICE SARL', phone: '', email: '', address: '', nif: '', stat: '', mvola: '', orange: '', airtel: '', bankHolder: '', bankName: '', rib: '' };
+const DOCS = { prefixes: { quote: 'DV', operation: 'OP' }, quoteValidityDays: 0, quoteNote: 'Montant tout compris, à régler en totalité avant l’exécution.' };
+// Monogramme HELPEO en ligne (aperçu et impression) : même dessin que assets/helpeo-mark.svg, à plat.
+const BRAND_MARK = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14.75" fill="#0F7560"/><path d="M21 17.5V46.5M43 17.5V46.5" stroke="#fff" stroke-width="7.5" stroke-linecap="round"/><path d="M21 27.75Q32 43.75 43 27.75" fill="none" stroke="#FF7A50" stroke-width="7.5" stroke-linecap="round"/></svg>';
 let TARIFS = { ...P.DEFAULTS, tiers: P.DEFAULTS.tiers.map(t => ({ ...t })) };
-const MANUAL_BASE = { EUR: 0, USD: 0 };
+const MANUAL_BASE = { EUR: 0, USD: 0 }, MANUAL_RECEIVE = { EUR: 0, USD: 0 };
 let DEFAULT_DEBIT_MODE = 'foreign';
 const viewHooks = {};
 const NAV_FOR = { clients: 'suivi', settings: 'suivi' };
@@ -25,7 +27,7 @@ function isoDate(d = new Date()) { return `${d.getFullYear()}-${String(d.getMont
 function displayDate(v) { if (!v) return '—'; const d = new Date(String(v).length === 10 ? `${v}T12:00:00` : v); return Number.isNaN(d.valueOf()) ? '—' : new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d); }
 function addDays(iso, n) { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + (Number(n) || 0)); return isoDate(d); }
 function makeId() { return globalThis.crypto?.randomUUID?.() || `q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
-function docNumber(kind, day, n) { return `${DOCS.prefixes[kind] || 'EP'}-${day}-${String(n).padStart(3, '0')}`; }
+function docNumber(kind, day, n) { return `${DOCS.prefixes[kind] || 'DV'}-${day}-${String(n).padStart(3, '0')}`; }
 function dayKey(d = new Date()) { return isoDate(d).replace(/-/g, ''); }
 
 function formatInputValue(value) {
@@ -41,20 +43,23 @@ function bindFormattedInput(id) { const el = $(id); el.addEventListener('input',
 
 // ---------- Taux ----------
 // Stockage : taux VISA de base (sans frais). L'ancien format gardait le taux client (base + 4 %).
+// « receive » : taux VISA inverse (1 EUR rapporte X MGA), pour la réception.
 function loadRates() {
   const saved = readStore('epayAppRates', {}) || {};
   const ok = r => r && Number(r.EUR) > 0 && Number(r.USD) > 0;
-  if (ok(saved.base)) return { base: { EUR: Number(saved.base.EUR), USD: Number(saved.base.USD) }, at: saved.date || null, source: saved.source || 'visa' };
-  if (ok(saved.clientRates)) return { base: { EUR: saved.clientRates.EUR / 1.04, USD: saved.clientRates.USD / 1.04 }, at: null, source: 'ancien' };
-  return { base: { ...P.FALLBACK_BASE }, at: null, source: 'secours' };
+  const receive = ok(saved.receive) ? { EUR: Number(saved.receive.EUR), USD: Number(saved.receive.USD) } : { ...P.FALLBACK_RECEIVE };
+  if (ok(saved.base)) return { base: { EUR: Number(saved.base.EUR), USD: Number(saved.base.USD) }, receive, at: saved.date || null, source: saved.source || 'visa' };
+  if (ok(saved.clientRates)) return { base: { EUR: saved.clientRates.EUR / 1.04, USD: saved.clientRates.USD / 1.04 }, receive, at: null, source: 'ancien' };
+  return { base: { ...P.FALLBACK_BASE }, receive, at: null, source: 'secours' };
 }
 const savedRates = loadRates();
 const savedMode = (() => { try { return localStorage.getItem('epayInternalDebitMode'); } catch { return null; } })();
+const savedFlow = (() => { try { return localStorage.getItem('epayCalcFlow'); } catch { return null; } })();
 
 const state = {
-  currency: 'EUR', transferType: 'bank', view: 'client',
+  currency: 'EUR', transferType: 'bank', view: 'client', flow: savedFlow === 'in' ? 'in' : 'out',
   debitMode: savedMode === 'direct' || savedMode === 'foreign' ? savedMode : null,
-  base: savedRates.base, ratesAt: savedRates.at, ratesSource: savedRates.source, ratesBusy: false,
+  base: savedRates.base, receive: savedRates.receive, ratesAt: savedRates.at, ratesSource: savedRates.source, ratesBusy: false,
   quotes: readStore('epayQuotesV2', []).filter(q => q && q.id).map(normalizeQuote),
   editingQuoteId: null, editingQuoteBase: null, draftNumber: null, draftId: null, pendingQuoteId: null, prefill: null, nextPrefill: null
 };
@@ -65,10 +70,12 @@ const ownerRateFor = cur => P.ownerRate(baseRate(cur), TARIFS);
 const debitMode = () => state.debitMode || DEFAULT_DEBIT_MODE;
 const calcClient = (amount, cur, type) => P.client(amount, clientRateFor(cur), type, TARIFS);
 const calcOwner = (amount, cur, mode) => P.owner(amount, ownerRateFor(cur), mode || debitMode(), TARIFS);
+const receiveBase = cur => (MANUAL_RECEIVE[cur] > 0 ? MANUAL_RECEIVE[cur] : Number(state.receive[cur]) || P.FALLBACK_RECEIVE[cur]);
+const calcReceive = (amount, cur) => P.receive(amount, receiveBase(cur), TARIFS);
 const ratesAgeMs = () => { const t = new Date(state.ratesAt || 0).valueOf(); return Number.isFinite(t) && t > 0 ? Date.now() - t : Infinity; };
 
 function rateStatus() {
-  if (MANUAL_BASE[state.currency] > 0) return { text: `Taux ${state.currency} manuel (Suivi › Réglages › Taux)`, warn: true };
+  if ((state.flow === 'in' ? MANUAL_RECEIVE : MANUAL_BASE)[state.currency] > 0) return { text: `Taux ${state.currency} manuel (Suivi › Réglages › Taux)`, warn: true };
   const at = state.ratesAt ? new Date(state.ratesAt) : null;
   const when = at && !Number.isNaN(at.valueOf()) ? new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(at) : '';
   const stale = ratesAgeMs() > 6 * 3600e3;
@@ -78,12 +85,12 @@ function rateStatus() {
 }
 function renderRateStatus() {
   const s = rateStatus();
-  $('rateStatus').textContent = state.ratesBusy ? 'Actualisation des taux VISA…' : s.text;
-  $('statusDot').className = `status-dot${s.warn ? ' warn' : ''}`;
+  for (const id of ['rateStatus', 'receiveStatus']) $(id).textContent = state.ratesBusy ? 'Actualisation des taux VISA…' : s.text;
+  for (const id of ['statusDot', 'receiveDot']) $(id).className = `status-dot${s.warn ? ' warn' : ''}`;
   $('rateDot').className = `rate-dot${s.warn ? ' warn' : ''}`;
 }
 
-// Taux du serveur E-Pay (le navigateur ne peut pas interroger VISA directement).
+// Taux du serveur HELPEO (le navigateur ne peut pas interroger VISA directement).
 async function refreshVisa({ force = false, quiet = false } = {}) {
   if (state.ratesBusy) return false;
   state.ratesBusy = true; $('refreshRates').disabled = true; renderRateStatus();
@@ -94,8 +101,10 @@ async function refreshVisa({ force = false, quiet = false } = {}) {
     if (!res.ok) throw new Error(data.error || `serveur ${res.status}`);
     const eur = Number(data.rates?.EUR?.base), usd = Number(data.rates?.USD?.base);
     if (!(eur > 0 && usd > 0)) throw new Error('réponse incomplète');
+    const inEur = Number(data.receive?.EUR?.base), inUsd = Number(data.receive?.USD?.base);
     state.base = { EUR: eur, USD: usd }; state.ratesAt = data.observedAt || new Date().toISOString(); state.ratesSource = data.source === 'market' ? 'market' : 'visa';
-    try { localStorage.setItem('epayAppRates', JSON.stringify({ date: state.ratesAt, base: state.base, source: state.ratesSource })); } catch {}
+    if (inEur > 0 && inUsd > 0) state.receive = { EUR: inEur, USD: inUsd };
+    try { localStorage.setItem('epayAppRates', JSON.stringify({ date: state.ratesAt, base: state.base, receive: state.receive, source: state.ratesSource })); } catch {}
     return true;
   } catch (e) {
     if (!quiet) showToast(`Taux non actualisés (${e.name === 'AbortError' ? 'délai dépassé' : e.message || 'réseau'}) : derniers taux connus utilisés.`, 'warn');
@@ -109,11 +118,14 @@ async function refreshVisa({ force = false, quiet = false } = {}) {
 function applyCurrencyUI() {
   $$('.rate-option').forEach(b => b.classList.toggle('active', b.dataset.currency === state.currency));
   const isEUR = state.currency === 'EUR';
-  ['clientCurrencyDot', 'internalCurrencyDot'].forEach(id => { $(id).className = `currency-dot ${isEUR ? 'eur' : 'usd'}`; });
-  ['clientCurrencyCode', 'clientCurrencyHint', 'internalCurrencyCode', 'internalCurrencyHint'].forEach(id => { $(id).textContent = state.currency; });
+  ['clientCurrencyDot', 'internalCurrencyDot', 'receiveCurrencyDot'].forEach(id => { $(id).className = `currency-dot ${isEUR ? 'eur' : 'usd'}`; });
+  ['clientCurrencyCode', 'clientCurrencyHint', 'internalCurrencyCode', 'internalCurrencyHint', 'receiveCurrencyCode', 'receiveCurrencyHint'].forEach(id => { $(id).textContent = state.currency; });
+  $$('[data-flow]').forEach(b => b.classList.toggle('active', b.dataset.flow === state.flow));
+  $('outCard').hidden = state.flow === 'in'; $('inCard').hidden = state.flow !== 'in';
 }
+// En tête : taux client (calcul), taux de la carte (interne) ou taux VISA de réception, frais inclus.
 function updateRateStrip() {
-  const rate = state.view === 'internal' ? ownerRateFor : clientRateFor;
+  const rate = state.view === 'internal' ? ownerRateFor : state.view === 'client' && state.flow === 'in' ? cur => P.receiveVisaRate(receiveBase(cur), TARIFS) : clientRateFor;
   $('rateEUR').textContent = fmtNumber(rate('EUR'), 2);
   $('rateUSD').textContent = fmtNumber(rate('USD'), 2);
 }
@@ -134,6 +146,26 @@ function updateClient() {
   $('cancelQuoteEdit').textContent = pending ? 'Annuler la modification du devis' : 'Annuler le devis pour ce client';
   if ($('quoteSheet').classList.contains('open') && !state.editingQuoteBase) renderDraftPreview();
 }
+// Réception : la commission du palier est dans le taux ; le client voit le taux et le montant remis.
+function updateReceive() {
+  const amount = parseInput('receiveAmount'), r = calcReceive(amount, state.currency), cur = state.currency;
+  const set = (id, v) => { $(id).textContent = v; };
+  set('receivePayout', r ? fmtNumber(r.payout, 0) : '—');
+  set('receiveRateMeta', r ? `1 ${cur} = ${fmtNumber(r.rate, 2)} MGA` : '—');
+  set('receivePercentMeta', r ? `${fmtNumber(r.percent, 2)} %` : '—');
+  set('receiveVisaBase', `${fmtNumber(receiveBase(cur), 2)} MGA`);
+  set('receiveVisaRate', `${fmtNumber(P.receiveVisaRate(receiveBase(cur), TARIFS), 2)} MGA (frais ${fmtNumber(TARIFS.receiveVisaFeePercent, 2)} %)`);
+  set('receiveGross', r ? fmtMGA(r.grossMGA, 0) : '—');
+  set('receiveMargin', r ? fmtMGA(r.marginMGA, 0) : '—');
+  const target = parseInput('receiveTarget'), need = P.receiveForPayout(target, receiveBase(cur), TARIFS);
+  set('receiveNeed', need > 0 ? fmtCurrency(need, cur, 2) : '—');
+}
+function receiveText() {
+  const cur = state.currency, amount = parseInput('receiveAmount'), r = calcReceive(amount, cur);
+  if (!r) return '';
+  return `${OFFICE.name}\nMontant reçu : ${fmtCurrency(amount, cur, 2)}\nTaux : 1 ${cur} = ${fmtNumber(r.rate, 2)} MGA\nVous recevez : ${fmtMGA(r.payout, 0)}\nTaux du ${displayDate(isoDate())}, confirmé le jour de la réception.`;
+}
+
 // Débits de la carte malgache, plafonnés (frais fixe compris) : « 2 débits : 5 000 000 + 1 234 000 MGA ».
 function debitPlan(t) {
   if (!t) return '';
@@ -148,7 +180,7 @@ function updateInternal() {
   const ids = ['internalDebit', 'internalBuy', 'internalRate', 'netProfit', 'clientBank', 'rechargeFee', 'ownerFixedFee', 'marginPercent', 'netProfitCash', 'internalPlan'];
   if (!t || !c) { ids.forEach(id => { $(id).textContent = '—'; }); $('internalPlan').classList.remove('warn'); return; }
   const plan = debitPlan(t), blocked = mode === 'direct' && t.debits > 1;
-  $('internalPlan').textContent = blocked ? `Débit direct impossible en un seul paiement au-delà de ${fmtMGA(t.cardLimitMGA, 0)} : passe par la carte étrangère (${t.debits} recharges).` : plan;
+  $('internalPlan').textContent = blocked ? `Débit direct impossible en une seule fois au-delà de ${fmtMGA(t.cardLimitMGA, 0)} : passe par la carte étrangère (${t.debits} recharges).` : plan;
   $('internalPlan').classList.toggle('warn', blocked);
   const profit = c.bankTotal - t.debitMGA;
   $('internalDebit').textContent = fmtNumber(t.debitMGA, 0);
@@ -162,7 +194,7 @@ function updateInternal() {
   $('marginPercent').textContent = `${fmtNumber(c.bankTotal > 0 ? profit / c.bankTotal * 100 : 0, 2)} %`;
   $('netProfitCash').textContent = fmtMGA(c.cashTotal - t.debitMGA, 0);
 }
-function refreshAll() { applyCurrencyUI(); updateRateStrip(); renderRateStatus(); updateClient(); updateInternal(); renderQuotes(); }
+function refreshAll() { applyCurrencyUI(); updateRateStrip(); renderRateStatus(); updateClient(); updateReceive(); updateInternal(); renderQuotes(); }
 
 function setView(view) {
   if (!$(`${view}View`)) view = 'client';
@@ -171,7 +203,7 @@ function setView(view) {
   const nav = NAV_FOR[view] || view;
   $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === nav));
   updateRateStrip();
-  try { viewHooks[view]?.(); } catch (e) { console.error('E-Pay vue :', e); }
+  try { viewHooks[view]?.(); } catch (e) { console.error('HELPEO vue :', e); }
   window.scrollTo({ top: 0 });
 }
 
@@ -234,13 +266,13 @@ function validityText(q) {
 }
 function quoteRows(q) {
   return [
-    { label: 'Montant à envoyer', detail: quoteMode(q), value: fmtCurrency(q.amount, q.currency, 2) },
+    { label: 'Montant en devise', detail: '', value: fmtCurrency(q.amount, q.currency, 2) },
     { label: 'Taux appliqué', detail: `1 ${q.currency}`, value: `${fmtNumber(q.rate, 2)} MGA` },
-    { label: 'Montant converti', detail: 'Avant frais', value: fmtMGA(q.convertedMGA, 0) },
-    { label: 'Frais de service & traitement', detail: 'Frais applicables inclus', value: fmtMGA(q.serviceFeesMGA, 0) }
+    { label: 'Équivalent en ariary', detail: '', value: fmtMGA(q.convertedMGA, 0) },
+    { label: 'Frais de service', detail: quoteMode(q), value: fmtMGA(q.serviceFeesMGA, 0) }
   ];
 }
-// Coordonnées de règlement renseignées dans Réglages › Paiement.
+// Coordonnées de règlement renseignées dans Réglages › Règlement.
 function paymentLines() {
   const o = OFFICE, lines = [];
   if (o.mvola) lines.push(`MVola : ${o.mvola}`);
@@ -260,6 +292,8 @@ function fillPreview(q) {
   $('previewTable').innerHTML = quoteRows(q).map(r => `<div class="preview-line"><div><span>${escapeHTML(r.label)}</span><strong>${escapeHTML(r.detail)}</strong></div><strong>${escapeHTML(r.value)}</strong></div>`).join('');
   $('previewTotal').textContent = fmtMGA(q.totalMGA, 0);
   $('previewNote').textContent = q.note || DOCS.quoteNote;
+  $('previewSlogan').textContent = OFFICE.slogan || '';
+  $('previewLegal').textContent = OFFICE.legal || '';
 }
 function renderDraftPreview() { fillPreview(currentDraft()); }
 function setQuoteButtons(q) {
@@ -368,7 +402,7 @@ function renderQuotes() {
 function quoteText(q) {
   const rows = quoteRows(q).map(r => `${r.label}${r.detail ? ` (${r.detail})` : ''} : ${r.value}`).join('\n');
   const pay = paymentLines();
-  return `DEVIS ${q.number} · ${OFFICE.name}\n${displayDate(quoteDate(q))}, ${validityText(q)}\nClient : ${q.client || '—'}${q.phone ? `\nTéléphone : ${q.phone}` : ''}${q.address ? `\nAdresse : ${q.address}` : ''}\n\n${rows}\n\nTOTAL À PAYER : ${fmtMGA(q.totalMGA, 0)}${pay.length ? `\n\nRèglement :\n${pay.join('\n')}` : ''}\n\n${q.note || DOCS.quoteNote}${officeLine() ? `\n\n${OFFICE.name} · ${officeLine()}` : ''}`;
+  return `DEVIS ${q.number} · ${OFFICE.name}\n${displayDate(quoteDate(q))}, ${validityText(q)}\nClient : ${q.client || '—'}${q.phone ? `\nTéléphone : ${q.phone}` : ''}${q.address ? `\nAdresse : ${q.address}` : ''}\n\n${rows}\n\nTOTAL : ${fmtMGA(q.totalMGA, 0)}${pay.length ? `\n\nRèglement :\n${pay.join('\n')}` : ''}\n\n${q.note || DOCS.quoteNote}${officeLine() ? `\n\n${OFFICE.name} · ${officeLine()}` : ''}`;
 }
 async function copyCurrentQuote() { try { await navigator.clipboard.writeText(quoteText(currentDraft())); $('quoteSheetSub').textContent = 'Devis copié : il peut être collé dans un message.'; } catch { $('quoteSheetSub').textContent = 'Copie impossible sur ce navigateur.'; } }
 function whatsappQuote() {
@@ -378,15 +412,19 @@ function whatsappQuote() {
 }
 function printHeader(title, sub) {
   const ids = [OFFICE.nif && `NIF ${OFFICE.nif}`, OFFICE.stat && `STAT ${OFFICE.stat}`].filter(Boolean).join(' · ');
-  return `<header class="print-head"><div class="print-brand"><svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14.75" fill="#0B0D12"/><path d="M37.51 22.75A14 14 0 1 0 37.51 41.25" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M22.25 32H52.75" stroke="#5B78FF" stroke-width="7" stroke-linecap="round"/></svg><div><strong>${escapeHTML(OFFICE.name)}</strong><span>${escapeHTML(OFFICE.slogan)}</span>${OFFICE.address ? `<span>${escapeHTML(OFFICE.address)}</span>` : ''}${officeLine() ? `<span>${escapeHTML(officeLine())}</span>` : ''}${ids ? `<span>${escapeHTML(ids)}</span>` : ''}</div></div><div class="print-title"><h1>${escapeHTML(title)}</h1><p>${escapeHTML(sub)}</p></div></header>`;
+  return `<header class="print-head"><div class="print-brand">${BRAND_MARK}<div><strong>${escapeHTML(OFFICE.name)}</strong><span>${escapeHTML(OFFICE.slogan)}</span>${OFFICE.address ? `<span>${escapeHTML(OFFICE.address)}</span>` : ''}${officeLine() ? `<span>${escapeHTML(officeLine())}</span>` : ''}${ids ? `<span>${escapeHTML(ids)}</span>` : ''}</div></div><div class="print-title"><h1>${escapeHTML(title)}</h1><p>${escapeHTML(sub)}</p></div></header>`;
 }
 function printClient(q) {
   return `<section class="print-client"><div class="print-block"><span>Client</span><strong>${escapeHTML(q.client || 'Client non renseigné')}${q.phone ? `<br>${escapeHTML(q.phone)}` : ''}${q.address ? `<br>${escapeHTML(q.address)}` : ''}</strong></div></section>`;
 }
+// Pied des documents imprimés : une seule ligne (Réglages › Entreprise › Pied des documents).
+function printFooter() {
+  return OFFICE.legal ? `<footer class="print-footer">${escapeHTML(OFFICE.legal)}</footer>` : '';
+}
 function printPayment() { const pay = paymentLines(); return pay.length ? `<p class="print-note"><strong>Règlement :</strong> ${pay.map(escapeHTML).join(' · ')}</p>` : ''; }
 function renderPrint(q) {
   const rows = quoteRows(q).map(r => `<tr><td>${escapeHTML(r.label)}</td><td>${escapeHTML(r.detail)}</td><td>${escapeHTML(r.value)}</td></tr>`).join('');
-  $('printStage').innerHTML = `<article class="print-page">${printHeader('DEVIS', `${q.number} · ${displayDate(quoteDate(q))}`)}${printClient(q)}<table class="print-table"><thead><tr><th>Description</th><th>Détail</th><th>Montant</th></tr></thead><tbody>${rows}</tbody></table><div class="print-total"><span>Total à payer</span><strong>${escapeHTML(fmtMGA(q.totalMGA, 0))}</strong></div><p class="print-note">${escapeHTML(q.note || DOCS.quoteNote)} Offre ${escapeHTML(validityText(q))}.</p>${printPayment()}<footer class="print-footer"><span>${escapeHTML(OFFICE.name)} · Devis généré électroniquement</span><span>${escapeHTML(q.number)}</span></footer></article>`;
+  $('printStage').innerHTML = `<article class="print-page">${printHeader('DEVIS', `${q.number} · ${displayDate(quoteDate(q))}`)}${printClient(q)}<table class="print-table"><thead><tr><th>Description</th><th>Détail</th><th>Montant</th></tr></thead><tbody>${rows}</tbody></table><div class="print-total"><span>Total</span><strong>${escapeHTML(fmtMGA(q.totalMGA, 0))}</strong></div><p class="print-note">${escapeHTML(q.note || DOCS.quoteNote)} Offre ${escapeHTML(validityText(q))}.</p>${printPayment()}${printFooter()}</article>`;
 }
 function printAnyQuote(q) { if (!q || !(q.totalMGA > 0)) return; renderPrint(q); setTimeout(() => window.print(), 60); }
 async function quoteToOperation() {
@@ -399,9 +437,15 @@ async function quoteToOperation() {
 // ---------- Événements ----------
 $$('.rate-option').forEach(b => b.addEventListener('click', () => { state.currency = b.dataset.currency; refreshAll(); }));
 $$('[data-transfer-type]').forEach(b => b.addEventListener('click', () => { state.transferType = b.dataset.transferType; refreshAll(); }));
+$$('[data-flow]').forEach(b => b.addEventListener('click', () => { state.flow = b.dataset.flow; try { localStorage.setItem('epayCalcFlow', state.flow); } catch {} refreshAll(); }));
 $$('[data-debit-mode]').forEach(b => b.addEventListener('click', () => { state.debitMode = b.dataset.debitMode; try { localStorage.setItem('epayInternalDebitMode', state.debitMode); } catch {} updateInternal(); }));
 document.addEventListener('click', e => { const v = e.target.closest?.('[data-view]'); if (v) setView(v.dataset.view); });
-['clientAmount', 'internalAmount', 'budgetAmount'].forEach(bindFormattedInput);
+['clientAmount', 'internalAmount', 'budgetAmount', 'receiveAmount', 'receiveTarget'].forEach(bindFormattedInput);
+$('copyReceive').addEventListener('click', async () => {
+  const t = receiveText(); if (!t) return;
+  try { await navigator.clipboard.writeText(t); showToast('Calcul copié : il peut être collé dans un message.', 'info'); } catch { showToast('Copie impossible sur ce navigateur.', 'warn'); }
+});
+$('whatsappReceive').addEventListener('click', () => { const t = receiveText(); if (t) EpayUI.openWhatsApp('', t); });
 $('refreshRates').addEventListener('click', () => refreshVisa({ force: true }).then(ok => { if (ok) showToast(`Taux ${state.ratesSource === 'visa' ? 'VISA' : 'du marché'} actualisés.`, 'info'); }));
 $('openQuote').addEventListener('click', () => (state.pendingQuoteId ? applyPendingQuote() : openQuote()));
 $('cancelQuoteEdit').addEventListener('click', () => { const wasPending = Boolean(state.pendingQuoteId); state.pendingQuoteId = null; state.nextPrefill = null; updateClient(); if (wasPending) setView('quotes'); });

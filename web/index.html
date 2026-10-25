@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#f4f5f7" />
+  <meta name="theme-color" content="#F5F3EC" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="application-name" content="E-Pay MG" />
-  <meta name="apple-mobile-web-app-title" content="E-Pay MG" />
+  <meta name="application-name" content="HELPEO" />
+  <meta name="apple-mobile-web-app-title" content="HELPEO" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="referrer" content="no-referrer" />
-  <link rel="icon" href="assets/epay-mark.svg" type="image/svg+xml" />
-  <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32" />
-  <link rel="apple-touch-icon" href="assets/app-icon-180.png" />
+  <link rel="icon" href="assets/helpeo-mark.svg" type="image/svg+xml" />
+  <link rel="icon" href="assets/helpeo-favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="assets/helpeo-icon-180.png" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <script>try{const t=localStorage.getItem("epayInterfaceTheme");if(t==="dark")document.documentElement.dataset.theme="dark"}catch{}</script>
-  <title>E-Pay MG — Paiements en devise</title>
-  <link rel="stylesheet" href="assets/app.css" />
-  <link rel="stylesheet" href="assets/premium-fixes.css" />
-  <link rel="stylesheet" href="assets/gestion.css" />
+  <script>try{if(localStorage.getItem("epayInterfaceTheme")==="dark"){document.documentElement.dataset.theme="dark";document.querySelector('meta[name="theme-color"]').content="#0A1412"}}catch{}</script>
+  <title>HELPEO</title>
+  <meta name="description" content="On vous aide à régler ça. HELPEO, un service de PREST OFFICE SARL." />
+  <link rel="preload" href="assets/fonts/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="assets/helpeo.css" />
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -46,8 +46,8 @@
     <div class="sticky-head">
     <header class="topbar">
       <div class="brand-wrap">
-        <img class="brand-mark" src="assets/epay-mark.svg" alt="E-Pay MG" width="42" height="42" />
-        <div class="brand-copy"><strong id="brandName">E-Pay MG</strong><span id="todayLabel">Paiements en devise</span></div>
+        <img class="brand-mark" src="assets/helpeo-mark.svg" alt="HELPEO" width="42" height="42" />
+        <div class="brand-copy"><strong id="brandName">HELPEO</strong><span id="todayLabel">On vous aide à régler ça</span></div>
       </div>
       <button class="icon-button" id="refreshRates" aria-label="Actualiser les taux VISA" title="Actualiser les taux VISA">
         <svg class="icon sm"><use href="#i-refresh"/></svg><span class="rate-dot" id="rateDot"></span>
@@ -62,17 +62,21 @@
 
     <section class="view active" id="clientView">
       <div class="section-eyebrow">Calcul client</div>
-      <section class="card">
-        <div class="card-head"><div><h2>Nouveau calcul</h2><p>Montant net à envoyer au bénéficiaire</p></div><span class="chip" id="commissionChip">Frais inclus</span></div>
+      <div class="segmented flow-switch" role="group" aria-label="Sens de l’opération">
+        <button type="button" class="segment active" data-flow="out">Vers l’étranger</button>
+        <button type="button" class="segment" data-flow="in">Depuis l’étranger</button>
+      </div>
+      <section class="card" id="outCard">
+        <div class="card-head"><div><h2>Nouveau calcul</h2><p>Montant en devise, total client en ariary</p></div><span class="chip" id="commissionChip">Frais inclus</span></div>
 
-        <div class="field-label"><span>À envoyer</span><span id="clientCurrencyHint">EUR</span></div>
+        <div class="field-label"><span>Montant</span><span id="clientCurrencyHint">EUR</span></div>
         <div class="amount-box">
           <div class="amount-currency"><span class="currency-dot eur" id="clientCurrencyDot"></span><span id="clientCurrencyCode">EUR</span></div>
-          <input id="clientAmount" class="amount-input" type="text" inputmode="decimal" autocomplete="off" value="1 000" aria-label="Montant à envoyer" />
+          <input id="clientAmount" class="amount-input" type="text" inputmode="decimal" autocomplete="off" value="1 000" aria-label="Montant en devise" />
         </div>
 
         <div class="segment-wrap">
-          <div class="field-label"><span>Mode de paiement</span><span></span></div>
+          <div class="field-label"><span>Règlement du client</span><span></span></div>
           <div class="segmented">
             <button class="segment active" data-transfer-type="bank">Banque</button>
             <button class="segment" data-transfer-type="cash">Espèces / Mobile</button>
@@ -80,11 +84,11 @@
         </div>
 
         <div class="result-card">
-          <div class="result-label">Total à payer</div>
+          <div class="result-label">Total client</div>
           <div class="result-total"><strong id="clientTotal">—</strong><span>MGA</span></div>
           <div class="result-meta">
             <div class="meta-item"><span>Taux appliqué</span><strong id="clientRateMeta">—</strong></div>
-            <div class="meta-item"><span>Frais &amp; traitement</span><strong id="clientFeesMeta">—</strong></div>
+            <div class="meta-item"><span>Frais de service</span><strong id="clientFeesMeta">—</strong></div>
           </div>
           <button class="primary" id="openQuote"><svg class="icon sm"><use href="#i-file"/></svg><span id="openQuoteLabel">Créer un devis</span></button>
         </div>
@@ -103,13 +107,53 @@
           </div>
         </details>
       </section>
+
+      <section class="card" id="inCard" hidden>
+        <div class="card-head"><div><h2>Réception</h2><p>Devise reçue de l’étranger, ariary remis au client</p></div></div>
+        <div class="field-label"><span>Montant reçu</span><span id="receiveCurrencyHint">EUR</span></div>
+        <div class="amount-box">
+          <div class="amount-currency"><span class="currency-dot eur" id="receiveCurrencyDot"></span><span id="receiveCurrencyCode">EUR</span></div>
+          <input id="receiveAmount" class="amount-input" type="text" inputmode="decimal" autocomplete="off" value="1 000" aria-label="Montant reçu en devise" />
+        </div>
+        <div class="result-card">
+          <div class="result-label">À remettre au client</div>
+          <div class="result-total"><strong id="receivePayout">—</strong><span>MGA</span></div>
+          <div class="result-meta">
+            <div class="meta-item"><span>Taux client</span><strong id="receiveRateMeta">—</strong></div>
+            <div class="meta-item"><span>Commission incluse</span><strong id="receivePercentMeta">—</strong></div>
+          </div>
+          <div class="result-actions">
+            <button class="primary" type="button" id="copyReceive"><svg class="icon sm"><use href="#i-copy"/></svg>Copier</button>
+            <button class="primary ghost" type="button" id="whatsappReceive"><svg class="icon sm"><use href="#i-whatsapp"/></svg>WhatsApp</button>
+          </div>
+        </div>
+        <div class="inline-status"><span class="status-dot" id="receiveDot"></span><span id="receiveStatus">Taux de référence</span></div>
+        <details class="disclosure">
+          <summary><span>Calcul depuis un montant MGA</span><svg class="icon sm"><use href="#i-chevron"/></svg></summary>
+          <div class="disc-body">
+            <div class="budget-row"><span class="amount-currency">MGA</span><input id="receiveTarget" type="text" inputmode="decimal" value="5 000 000" aria-label="Montant à remettre en MGA" /></div>
+            <div class="budget-results single">
+              <div class="budget-result"><span>Montant à recevoir pour remettre ce montant</span><strong id="receiveNeed">—</strong></div>
+            </div>
+          </div>
+        </details>
+        <details class="disclosure">
+          <summary><span>Détail interne</span><svg class="icon sm"><use href="#i-chevron"/></svg></summary>
+          <div class="disc-body"><div class="detail-list">
+            <div class="detail-row"><span>Taux VISA de base</span><strong id="receiveVisaBase">—</strong></div>
+            <div class="detail-row"><span>Taux VISA avec frais</span><strong id="receiveVisaRate">—</strong></div>
+            <div class="detail-row"><span>Valeur au taux VISA</span><strong id="receiveGross">—</strong></div>
+            <div class="detail-row"><span>Commission HELPEO</span><strong id="receiveMargin">—</strong></div>
+          </div></div>
+        </details>
+      </section>
     </section>
 
     <section class="view" id="internalView">
       <div class="section-eyebrow">Calcul interne</div>
       <section class="card">
         <div class="card-head"><div><h2>Coût &amp; marge</h2><p>Vue privée, basée sur le taux interne</p></div><span class="chip">Interne</span></div>
-        <div class="field-label"><span>Montant à envoyer</span><span id="internalCurrencyHint">EUR</span></div>
+        <div class="field-label"><span>Montant en devise</span><span id="internalCurrencyHint">EUR</span></div>
         <div class="amount-box">
           <div class="amount-currency"><span class="currency-dot eur" id="internalCurrencyDot"></span><span id="internalCurrencyCode">EUR</span></div>
           <input id="internalAmount" class="amount-input" type="text" inputmode="decimal" autocomplete="off" value="1 000" aria-label="Montant interne" />
@@ -159,7 +203,7 @@
     <section class="view" id="operationsView">
       <div class="section-eyebrow">Opérations</div>
       <section class="card">
-        <div class="card-head"><div><h2>Opérations</h2><p>Du paiement du client à la confirmation du bénéficiaire</p></div><button class="icon-button" id="operationNew" aria-label="Nouvelle opération"><svg class="icon sm"><use href="#i-plus"/></svg></button></div>
+        <div class="card-head"><div><h2>Opérations</h2><p>Du règlement du client à la confirmation</p></div><button class="icon-button" id="operationNew" aria-label="Nouvelle opération"><svg class="icon sm"><use href="#i-plus"/></svg></button></div>
         <div class="list-tools"><input id="operationSearch" type="search" placeholder="Client, bénéficiaire, numéro, référence…" autocomplete="off" aria-label="Rechercher une opération" /><select id="operationFilter" aria-label="Filtrer les opérations"></select></div>
         <p class="list-summary" id="operationSummary"></p>
         <div id="operationsList"></div>
@@ -171,7 +215,7 @@
       <button type="button" class="sync-pill" id="suiviSync" data-state="off"></button>
       <section class="kpi-grid" id="suiviKpis" aria-label="Chiffres clés"></section>
       <section class="card">
-        <div class="card-head"><div><h2>À faire</h2><p>Transferts à faire, paiements attendus, confirmations</p></div></div>
+        <div class="card-head"><div><h2>À faire</h2><p>Opérations à faire, règlements attendus, confirmations</p></div></div>
         <div class="history-list" id="suiviTodo"></div>
       </section>
       <section class="card">
@@ -207,7 +251,7 @@
     <section class="view" id="settingsView">
       <div class="section-eyebrow"><button type="button" class="text-btn back-link" data-view="suivi">← Suivi</button> · Réglages</div>
       <section class="card" id="syncCard">
-        <div class="card-head"><div><h2>Synchronisation</h2><p>Données privées sur le serveur E-Pay, protégées par mot de passe</p></div><span class="chip sync-chip" id="syncChip" data-state="off">Non connecté</span></div>
+        <div class="card-head"><div><h2>Synchronisation</h2><p>Données privées sur le serveur HELPEO, protégées par mot de passe</p></div><span class="chip sync-chip" id="syncChip" data-state="off">Non connecté</span></div>
         <div id="syncLoggedOut">
           <div id="syncLogin">
             <p class="field-hint">Connecte cet appareil pour retrouver devis, opérations et clients sur tous tes appareils.</p>
@@ -288,15 +332,16 @@
       <article class="quote-preview" id="quotePreview">
         <div class="preview-top">
           <div class="preview-brand">
-            <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14.75" fill="#0B0D12"/><path d="M37.51 22.75A14 14 0 1 0 37.51 41.25" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M22.25 32H52.75" stroke="#5B78FF" stroke-width="7" stroke-linecap="round"/></svg>
-            <div><strong id="previewBrand">E-Pay MG</strong><span>Devis de transfert</span></div>
+            <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14.75" fill="#0F7560"/><path d="M21 17.5V46.5M43 17.5V46.5" stroke="#fff" stroke-width="7.5" stroke-linecap="round"/><path d="M21 27.75Q32 43.75 43 27.75" fill="none" stroke="#FF7A50" stroke-width="7.5" stroke-linecap="round"/></svg>
+            <div><strong id="previewBrand">HELPEO</strong><span id="previewSlogan">On vous aide à régler ça</span></div>
           </div>
-          <div class="preview-ref"><strong id="previewNumber">—</strong><span id="previewDate">—</span></div>
+          <div class="preview-ref"><span class="preview-doc">Devis</span><strong id="previewNumber">—</strong><span id="previewDate">—</span></div>
         </div>
         <div class="preview-client"><span>Client</span><strong id="previewClient">Client non renseigné</strong><p class="preview-client-info" id="previewClientInfo" hidden></p></div>
         <div class="preview-table" id="previewTable"></div>
-        <div class="preview-total"><span>Total à payer</span><strong id="previewTotal">—</strong></div>
+        <div class="preview-total"><span>Total</span><strong id="previewTotal">—</strong></div>
         <p class="preview-note" id="previewNote"></p>
+        <p class="preview-legal" id="previewLegal"></p>
       </article>
 
       <div class="sheet-actions">
@@ -366,7 +411,7 @@
   <script>
     (()=>{
       const load=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.body.appendChild(s)});
-      load(`config.js?t=${Date.now()}`).then(()=>load(`assets/app.js?v=${window.EPAY.build}`)).catch(error=>console.error('E-Pay MG :',error));
+      load(`config.js?t=${Date.now()}`).then(()=>load(`assets/app.js?v=${window.EPAY.build}`)).catch(error=>console.error('HELPEO :',error));
       if ("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{}));
     })();
   </script>

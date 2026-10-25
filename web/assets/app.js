@@ -6,5 +6,5 @@
   const files = ['assets/pricing.js', 'assets/ui.js', 'assets/sync.js', 'assets/app-core.js', 'assets/clients.js', 'assets/operations.js', 'assets/settings.js', 'assets/dashboard.js', 'assets/export-image.js', 'assets/theme-patch.js', 'assets/motion-polish.js'];
   files.reduce((chain, file) => chain.then(() => loadScript(versioned(file))), Promise.resolve())
     .then(() => window.EpaySync?.start())
-    .catch((error) => console.error('E-Pay MG :', error));
+    .catch((error) => console.error('HELPEO :', error));
 })();

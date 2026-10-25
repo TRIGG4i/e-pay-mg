@@ -1,4 +1,4 @@
-name: Deploy E-Pay MG to GitHub Pages
+name: Deploy HELPEO to GitHub Pages
 
 on:
   push:

@@ -1,7 +1,7 @@
 (() => {
-  const BUILD = '20261024-paiement1';
+  const BUILD = '20261025-helpeo3';
   const KEY = 'epayRuntimeBuild';
-  // En local (tests), l'app parle au serveur qui la sert ; en ligne, au serveur E-Pay du VPS.
+  // En local (tests), l'app parle au serveur qui la sert ; en ligne, au serveur HELPEO du VPS.
   const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   window.EPAY = Object.freeze({ apiBase: local ? location.origin : 'https://epay.169-58-138-232.sslip.io', build: BUILD });
   try {

@@ -1,4 +1,6 @@
-// Taux VISA de base (sans frais bancaires) EUR→MGA et USD→MGA, pour E-Pay MG.
+// Taux VISA de base (sans frais bancaires) pour HELPEO, dans les deux sens :
+// - « rates » : carte en MGA, achat en devise (1 EUR coûte X MGA) ;
+// - « receive » : carte en devise, dépense en MGA (1 EUR rapporte X MGA), pour la réception.
 // L'app applique ensuite ses propres marges (Réglages › Tarifs).
 // Visa protège /cmsapi/fx/rates derrière un défi Cloudflare : un fetch serveur reçoit
 // un 403. Ordre de repli : appel direct, puis vrai navigateur (Chromium sans écran,
@@ -55,20 +57,30 @@ export const extractVisaBaseRate = (json) => {
   return { value: extractVisaRate(json).value, asOf: null };
 };
 
-const visaQuery = (currency) => new URLSearchParams({
-  amount: '1', fee: '0', utcConvertedDate: visaDate(), exchangedate: visaDate(), fromCurr: 'MGA', toCurr: currency
-}).toString();
+// Sens inverse : Visa donne la devise pour 1 MGA (0,000195 EUR) ; on garde des MGA pour 1 EUR.
+export const extractVisaReceiveRate = (json) => {
+  const direct = parseNumber(json?.originalValues?.fxRateVisa);
+  if (direct > 0 && plausibleMgaRate(1 / direct)) return { value: 1 / direct, asOf: Number(json.originalValues.asOfDate) || null };
+  throw new Error('Taux VISA de réception introuvable');
+};
 
-async function viaDirect(currency) {
+// fromCurr : devise de la carte ; toCurr : devise de la transaction.
+const visaQuery = (currency, receive = false) => new URLSearchParams({
+  amount: '1', fee: '0', utcConvertedDate: visaDate(), exchangedate: visaDate(),
+  fromCurr: receive ? currency : 'MGA', toCurr: receive ? 'MGA' : currency
+}).toString();
+const extract = (json, receive) => (receive ? extractVisaReceiveRate(json) : extractVisaBaseRate(json));
+
+async function viaDirect(currency, receive = false) {
   for (const domain of VISA_DOMAINS) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 6000);
     try {
-      const response = await fetch(`${domain}/cmsapi/fx/rates?${visaQuery(currency)}`, {
+      const response = await fetch(`${domain}/cmsapi/fx/rates?${visaQuery(currency, receive)}`, {
         headers: { Accept: 'application/json', 'User-Agent': UA }, cache: 'no-store', signal: controller.signal
       });
       if (!response.ok || !(response.headers.get('content-type') || '').includes('json')) continue;
-      return extractVisaBaseRate(await response.json());
+      return extract(await response.json(), receive);
     } catch { /* domaine suivant */ } finally { clearTimeout(timer); }
   }
   return null;
@@ -81,15 +93,15 @@ async function viaBrowser() {
   try {
     const page = await (await browser.newContext({ userAgent: UA, locale: 'en-US' })).newPage();
     await page.goto(VISA_PAGE, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    const out = {};
-    for (const currency of CURRENCIES) {
+    const rates = {}, receive = {};
+    for (const currency of CURRENCIES) for (const [into, inverse] of [[rates, false], [receive, true]]) {
       const json = await page.evaluate(async (qs) => {
         const r = await fetch(`/cmsapi/fx/rates?${qs}`, { headers: { Accept: 'application/json' } });
         return r.ok ? r.json() : null;
-      }, visaQuery(currency));
-      if (json) out[currency] = extractVisaBaseRate(json);
+      }, visaQuery(currency, inverse));
+      if (json) try { into[currency] = extract(json, inverse); } catch { /* devise suivante */ }
     }
-    return out.USD ? out : null;
+    return rates.USD ? { rates, receive } : null;
   } finally { await browser.close(); }
 }
 
@@ -109,16 +121,21 @@ async function viaMarket() {
 let cache = null;
 let inflight = null;
 
+// Sans taux Visa inverse, la réception reprend le taux d'achat (marché : taux moyen).
 async function loadBaseRates() {
   const direct = await viaDirect('USD');
   if (direct) {
-    const eur = await viaDirect('EUR');
-    return { source: 'visa', rates: { USD: direct, ...(eur ? { EUR: eur } : {}) } };
+    const rates = { USD: direct }, receive = {};
+    for (const currency of CURRENCIES) {
+      if (currency !== 'USD') { const r = await viaDirect(currency); if (r) rates[currency] = r; }
+      const back = await viaDirect(currency, true); if (back) receive[currency] = back;
+    }
+    return { source: 'visa', rates, receive: { ...rates, ...receive } };
   }
   const browser = await viaBrowser().catch(() => null);
-  if (browser) return { source: 'visa', rates: browser };
+  if (browser) return { source: 'visa', rates: browser.rates, receive: { ...browser.rates, ...browser.receive } };
   const market = await viaMarket();
-  if (market) return { source: 'market', rates: market };
+  if (market) return { source: 'market', rates: market, receive: market };
   return null;
 }
 
@@ -135,14 +152,12 @@ export async function getBaseRates({ force = false } = {}) {
   return inflight;
 }
 
-// Réponse de /api/rates : taux de base de chaque devise, source et date d'observation.
+// Réponse de /api/rates : taux de base de chaque devise (achat et réception), source et date d'observation.
 export async function currentRates({ force = false } = {}) {
   const base = await getBaseRates({ force });
   if (!base) throw Object.assign(new Error('Taux VISA indisponibles pour le moment.'), { status: 503 });
-  const rates = {};
-  for (const [currency, entry] of Object.entries(base.rates)) {
-    rates[currency] = { base: entry.value, asOf: entry.asOf ? new Date(entry.asOf * 1000).toISOString() : null };
-  }
-  return { source: base.source, observedAt: new Date(base.fetchedAt).toISOString(), rates,
+  const shape = (list = {}) => Object.fromEntries(Object.entries(list).map(([currency, entry]) =>
+    [currency, { base: entry.value, asOf: entry.asOf ? new Date(entry.asOf * 1000).toISOString() : null }]));
+  return { source: base.source, observedAt: new Date(base.fetchedAt).toISOString(), rates: shape(base.rates), receive: shape(base.receive || base.rates),
     ...(base.source === 'market' ? { warning: 'VISA indisponible : taux du marché utilisé' } : {}) };
 }

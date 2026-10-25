@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "E-Pay MG — paiements en devise : calcul, devis, opérations, clients et suivi, synchronisés entre appareils",
+  "description": "HELPEO, un service de PREST OFFICE SARL : calcul, devis, opérations, clients et suivi, synchronisés entre appareils",
   "engines": {
     "node": ">=22.5"
   },

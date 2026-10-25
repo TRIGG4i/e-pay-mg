@@ -1,6 +1,7 @@
-// Moteur de prix E-Pay MG : total client et coût interne d'un paiement en devise.
-// Sans DOM ni stockage : partagé par l'app et les tests. Les taux reçus sont des taux VISA
-// de base (sans frais) ; chaque marge vient des tarifs (Réglages › Tarifs).
+// Moteur de prix HELPEO : total client et coût interne d'une opération en devise, et réception
+// (devise reçue de l'étranger, ariary remis au client). Sans DOM ni stockage : partagé par l'app
+// et les tests. Les taux reçus sont des taux VISA de base (sans frais) ; chaque marge vient des
+// tarifs (Réglages › Tarifs).
 (function (root) {
   'use strict';
   const DEFAULTS = Object.freeze({
@@ -16,14 +17,20 @@
     rechargeFeePercent: 1,
     ownerFixedFeeMGA: 1000,
     // Plafond d'un débit de la carte VISA malgache (par carte et par jour), frais fixe compris ; 0 = sans plafond.
-    ownerCardLimitMGA: 5000000
+    ownerCardLimitMGA: 5000000,
+    // Réception : frais bancaires du calculateur VISA (carte en devise, dépense en MGA), arrondi du montant remis.
+    receiveVisaFeePercent: 4,
+    receiveRoundTo: 100
   });
   const CURRENCIES = ['EUR', 'USD'];
   // Taux VISA de base observés le 24/10/2026 : seulement si aucun taux n'a jamais pu être chargé.
   const FALLBACK_BASE = Object.freeze({ EUR: 5150.21, USD: 4584.9 });
+  // Sens inverse (1 EUR rapporte X MGA), observé le 25/10/2026.
+  const FALLBACK_RECEIVE = Object.freeze({ EUR: 5127.3, USD: 4584.9 });
 
   const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
   const roundUp = (value, unit) => (unit > 0 ? Math.ceil(value / unit) * unit : value);
+  const roundDown = (value, unit) => (unit > 0 ? Math.floor(value / unit + 1e-9) * unit : value);
   const config = cfg => ({ ...DEFAULTS, ...(cfg || {}) });
 
   function commissionPercent(amount, cfg) {
@@ -79,6 +86,30 @@
     };
   }
 
+  // Réception : HELPEO reçoit `amount` en devise pour le client et lui remet des ariary.
+  // Taux VISA inverse moins les frais bancaires (5 127,30 / 1,04 = 4 930,09), puis la commission du
+  // palier, incluse dans le taux : le client ne voit qu'un taux et le montant remis (arrondi en dessous).
+  function receiveVisaRate(base, cfg) { return base > 0 ? base / (1 + config(cfg).receiveVisaFeePercent / 100) : NaN; }
+  function receive(amount, base, cfg) {
+    const c = config(cfg), visaRate = receiveVisaRate(base, c);
+    if (!(amount > 0) || !(visaRate > 0)) return null;
+    const percent = commissionPercent(amount, c);
+    const rate = visaRate * (1 - percent / 100);
+    const payout = roundDown(amount * rate, c.receiveRoundTo);
+    const grossMGA = amount * visaRate;
+    return { base, visaRate, percent, rate, payout, grossMGA, marginMGA: grossMGA - payout };
+  }
+  // Montant à recevoir (en devise, au centime supérieur) pour remettre au moins `target` MGA.
+  function receiveForPayout(target, base, cfg) {
+    if (!(target > 0) || !(base > 0)) return 0;
+    const payout = a => receive(a, base, cfg)?.payout ?? 0;
+    let low = 0, high = Math.max(1, target / base), guard = 0;
+    while (payout(high) < target && guard++ < 40) high *= 2;
+    for (let i = 0; i < 60; i++) { const mid = (low + high) / 2; if (payout(mid) >= target) high = mid; else low = mid; }
+    const cents = Math.ceil(high * 100 - 1e-6) / 100;
+    return payout(cents) >= target ? cents : Math.ceil(high * 100) / 100;
+  }
+
   // Montant maximal envoyable avec un budget en ariary (recherche par dichotomie, arrondi à l'unité inférieure).
   function maxFromBudget(budget, rate, mode, cfg) {
     if (!(budget > 0) || !(rate > 0)) return 0;
@@ -89,7 +120,7 @@
     return Math.floor(low);
   }
 
-  const api = { DEFAULTS, CURRENCIES, FALLBACK_BASE, commissionPercent, clientRate, ownerRate, client, owner, maxFromBudget };
+  const api = { DEFAULTS, CURRENCIES, FALLBACK_BASE, FALLBACK_RECEIVE, commissionPercent, clientRate, ownerRate, client, owner, maxFromBudget, receiveVisaRate, receive, receiveForPayout };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.EpayPricing = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

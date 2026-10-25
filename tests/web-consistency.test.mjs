@@ -40,7 +40,17 @@ test('chaque vue appelée par setView ou data-view existe', () => {
   for (const v of views) assert.ok(ids.has(`${v}View`), `vue #${v}View absente`);
 });
 
-test('le navigateur n’appelle jamais VISA directement (bloqué par CORS) : taux via le serveur E-Pay', () => {
+test('le navigateur n’appelle jamais VISA directement (bloqué par CORS) : taux via le serveur HELPEO', () => {
   for (const f of ['index.html', 'config.js', ...scripts]) assert.ok(!/visa\.com|visa\.fr|corsproxy|allorigins/.test(read(f)), f);
   assert.match(read('assets/app-core.js'), /\/api\/rates/);
+});
+
+test('aucune mention de paiement ni de transfert dans ce que voit le client', () => {
+  const visible = [html, read('manifest.webmanifest'), read('assets/export-image.js')].join('\n').replace(/<script[\s\S]*?<\/script>/g, '');
+  for (const word of [/paiement/i, /transfert/i, /\bpayer\b/i, /envois? d/i]) assert.ok(!word.test(visible), `${word} encore présent`);
+  const core = read('assets/app-core.js');
+  for (const k of ['slogan', 'legal', 'quoteNote']) {
+    const v = new RegExp(`${k}: '([^']+)'`).exec(core)?.[1] || '';
+    assert.ok(v && !/paiement|transfert|payer/i.test(v), `${k} : ${v}`);
+  }
 });
