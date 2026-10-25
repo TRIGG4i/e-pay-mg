@@ -1,8 +1,8 @@
 """Génère l'identité HELPEO (SVG vectoriels, texte converti en tracés).
 
-Monogramme : un « H » blanc dont la barre est un câble corail tendu entre deux piliers,
-sur une tuile verte. C'est un pont : on aide à passer ce qui bloque. C'est aussi un
-sourire, celui du problème réglé. Logotype : HELPEO, le O en corail, puis le slogan.
+Monogramme : un « H » formé de deux personnes, une tête ronde sur un corps, reliées par un
+bras corail : l'une tend la main à l'autre. Logotype : HELP à l'encre, EO en corail, puis
+le slogan.
 
 Usage : python3 brand/generate.py <dossier-polices> web/assets, puis brand/icons.sh.
 Dépendances : uharfbuzz, fonttools ; police PlusJakartaSans.ttf (variable, Google Fonts, licence OFL).
@@ -20,14 +20,16 @@ OUT = Path(sys.argv[2])
 OUT.mkdir(parents=True, exist_ok=True)
 
 GREEN_A, GREEN_B = "#13866C", "#0A4F42"   # tuile : vert HELPEO, du clair au profond
-CORAL = "#FF7A50"                          # le câble du pont, le O
+CORAL = "#FF7A50"                          # la main tendue, EO
 INK, INK_SUB = "#13231F", "#4F6660"        # texte sur fond clair
 WHITE_SUB = "#A9C2BA"                      # sous-titre sur fond sombre
-TAG = "On vous aide à régler ça"
+TAG = "Besoin d’aide\u202f? On est là"
 
-# Géométrie sur une grille de 512 : deux tours, un câble qui pend (courbe de Bézier quadratique).
-LX, RX, TOP, BOT, SW = 168, 344, 140, 372, 60
-CABLE_Y, CABLE_CTRL = 222, 350             # attaches du câble, point de contrôle (point bas réel : 286)
+# Géométrie sur une grille de 512 : deux têtes, deux corps, un bras qui les relie (Bézier quadratique).
+LX, RX, SW = 168, 344, 60
+HEAD_Y, HEAD_R = 150, 36                   # têtes : un peu plus larges que le trait
+BODY_TOP, BOT = 246, 372                   # épaules (attaches du bras) et pieds
+ARM_CTRL = 390                             # point de contrôle du bras (point bas réel : 318)
 
 
 def instance(name, wght):
@@ -66,15 +68,19 @@ def mark_shapes(s=512, ox=0, oy=0, bleed=False):
     """Tuile + H. En plein cadre (masquable), le H est réduit pour tenir dans la zone sûre d'Android."""
     k = s / 512
     shrink = 0.84 if bleed else 1
-    P = lambda x, y: f"{ox + (256 + (x - 256) * shrink) * k:.2f},{oy + (256 + (y - 256) * shrink) * k:.2f}"
+    X = lambda x: ox + (256 + (x - 256) * shrink) * k
+    Y = lambda y: oy + (256 + (y - 256) * shrink) * k
+    P = lambda x, y: f"{X(x):.2f},{Y(y):.2f}"
     sw = SW * shrink * k
     r = 0 if bleed else 118 * k
-    pillars = f"M{P(LX, TOP)}L{P(LX, BOT)}M{P(RX, TOP)}L{P(RX, BOT)}"
-    cable = f"M{P(LX, CABLE_Y)}Q{P(256, CABLE_CTRL)} {P(RX, CABLE_Y)}"
+    heads = "".join(f'\n  <circle cx="{X(x):.2f}" cy="{Y(HEAD_Y):.2f}" r="{HEAD_R * shrink * k:.2f}" fill="#FFFFFF"/>'
+                    for x in (LX, RX))
+    bodies = f"M{P(LX, BODY_TOP)}L{P(LX, BOT)}M{P(RX, BODY_TOP)}L{P(RX, BOT)}"
+    arm = f"M{P(LX, BODY_TOP)}Q{P(256, ARM_CTRL)} {P(RX, BODY_TOP)}"
     return f"""
-  <rect x="{ox:.2f}" y="{oy:.2f}" width="{s:.2f}" height="{s:.2f}" rx="{r:.2f}" fill="url(#hpTile)"/>
-  <path d="{pillars}" fill="none" stroke="#FFFFFF" stroke-width="{sw:.2f}" stroke-linecap="round"/>
-  <path d="{cable}" fill="none" stroke="{CORAL}" stroke-width="{sw:.2f}" stroke-linecap="round"/>"""
+  <rect x="{ox:.2f}" y="{oy:.2f}" width="{s:.2f}" height="{s:.2f}" rx="{r:.2f}" fill="url(#hpTile)"/>{heads}
+  <path d="{bodies}" fill="none" stroke="#FFFFFF" stroke-width="{sw:.2f}" stroke-linecap="round"/>
+  <path d="{arm}" fill="none" stroke="{CORAL}" stroke-width="{sw:.2f}" stroke-linecap="round"/>"""
 
 
 def defs(s=512, ox=0, oy=0):
@@ -96,21 +102,21 @@ semi = instance("PlusJakartaSans", 600)
 
 
 def word(x0, baseline, ink, size=104):
-    """« HELPEO » : lettres à l'encre, O en corail."""
+    """« HELPEO » : HELP à l'encre (le sens de la marque), EO en corail."""
     glyphs, w = text_paths(heavy, "HELPEO", size, x0, baseline, tracking=0.015)
-    letters = "".join(d for c, d in glyphs if c != 5)
-    o = "".join(d for c, d in glyphs if c == 5)
-    return f'\n  <path d="{letters}" fill="{ink}"/>\n  <path d="{o}" fill="{CORAL}"/>', w
+    help_ = "".join(d for c, d in glyphs if c < 4)
+    eo = "".join(d for c, d in glyphs if c >= 4)
+    return f'\n  <path d="{help_}" fill="{ink}"/>\n  <path d="{eo}" fill="{CORAL}"/>', w
 
 
 def tagline(x0, baseline, color, size=22):
-    """Slogan sous le logotype, plus discret que lui."""
-    glyphs, _ = text_paths(semi, TAG, size, x0, baseline, tracking=0.005)
+    """Slogan sous le logotype, plus discret que lui. La police d'origine n'a pas U+202F : espace fine."""
+    glyphs, _ = text_paths(semi, TAG.replace("\u202f", "\u2009"), size, x0, baseline, tracking=0.005)
     return f'\n  <path d="{"".join(d for _, d in glyphs)}" fill="{color}"/>'
 
 
-(OUT / "helpeo-mark.svg").write_text(svg(512, 512, defs() + mark_shapes()))
-(OUT / "helpeo-mark-maskable.svg").write_text(svg(512, 512, defs() + mark_shapes(bleed=True)))
+(OUT / "helpeo-mark-v2.svg").write_text(svg(512, 512, defs() + mark_shapes()))
+(OUT / "helpeo-mark-maskable-v2.svg").write_text(svg(512, 512, defs() + mark_shapes(bleed=True)))
 
 
 def lockup(ink, sub, name):

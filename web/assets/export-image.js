@@ -9,18 +9,19 @@
     if (fill) { ctx.fillStyle = fill; ctx.fill(); }
     if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
   };
-  // Monogramme HELPEO (même dessin que assets/helpeo-mark.svg, grille de 512) : deux tours blanches,
-  // un câble corail qui pend entre elles, sur la tuile verte.
+  // Monogramme HELPEO (même dessin que assets/helpeo-mark-v2.svg, grille de 512) : deux personnes,
+  // tête et corps blancs, reliées par un bras corail, sur la tuile verte.
   const drawLogo = (ctx, x, y, s) => {
     const k = s / 512, P = (px, py) => [x + px * k, y + py * k];
     const tile = ctx.createLinearGradient(x, y, x + s, y + s);
     tile.addColorStop(0, '#13866C'); tile.addColorStop(1, '#0A4F42');
     roundRect(ctx, x, y, s, s, 118 * k, tile);
     ctx.lineCap = 'round'; ctx.lineWidth = 60 * k;
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.beginPath(); ctx.moveTo(...P(168, 140)); ctx.lineTo(...P(168, 372)); ctx.moveTo(...P(344, 140)); ctx.lineTo(...P(344, 372)); ctx.stroke();
+    ctx.fillStyle = ctx.strokeStyle = '#FFFFFF';
+    for (const hx of [168, 344]) { ctx.beginPath(); ctx.arc(...P(hx, 150), 36 * k, 0, Math.PI * 2); ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(...P(168, 246)); ctx.lineTo(...P(168, 372)); ctx.moveTo(...P(344, 246)); ctx.lineTo(...P(344, 372)); ctx.stroke();
     ctx.strokeStyle = CORAL;
-    ctx.beginPath(); ctx.moveTo(...P(168, 222)); ctx.quadraticCurveTo(...P(256, 350), ...P(344, 222)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(...P(168, 246)); ctx.quadraticCurveTo(...P(256, 390), ...P(344, 246)); ctx.stroke();
   };
   const wrap = (ctx, text, max) => {
     const out = [];
@@ -55,7 +56,11 @@
     ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, tall.height);
 
     drawLogo(ctx, PAD, 72, 94);
-    text(ctx, OFFICE.name, 194, 111, { size: 40, weight: 800, color: INK, max: 470 });
+    const name = String(OFFICE.name || '').trim();
+    if (/^helpeo$/i.test(name)) {   // HELP à l'encre, EO en corail, comme le logo
+      text(ctx, name.slice(0, 4), 194, 111, { size: 40, weight: 800, color: INK });
+      text(ctx, name.slice(4), 194 + ctx.measureText(name.slice(0, 4)).width, 111, { size: 40, weight: 800, color: CORAL });
+    } else text(ctx, name, 194, 111, { size: 40, weight: 800, color: INK, max: 470 });
     // Sous le nom : slogan, puis coordonnées et identifiants s'ils sont renseignés.
     const ids = [OFFICE.nif && `NIF ${OFFICE.nif}`, OFFICE.stat && `STAT ${OFFICE.stat}`].filter(Boolean).join(' · ');
     const lines = [OFFICE.slogan, [OFFICE.phone, OFFICE.email].filter(Boolean).join(' · '), OFFICE.address, ids].filter(Boolean);

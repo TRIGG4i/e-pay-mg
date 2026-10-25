@@ -24,7 +24,7 @@ try {
       mkdirSync(path.dirname(html), { recursive: true });
       writeFileSync(html, `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Activer HELPEO</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F5F3EC;font:16px/1.5 system-ui,sans-serif;color:#13231F}main{max-width:340px;padding:28px;text-align:center}h1{margin:0;letter-spacing:.04em}h1 span{color:#FF7A50}small{display:block;color:#65706B;font-size:13px;font-weight:600}a{display:block;margin-top:18px;padding:14px 18px;border-radius:14px;background:#0E7A62;color:#fff;font-weight:800;text-decoration:none}p{color:#65706B;font-size:14px}</style></head>
-<body><main><h1>HELPE<span>O</span></h1><small>On vous aide à régler ça</small><p>Lien à usage unique, valable ${hours} h : il ouvre HELPEO et te fait choisir ton mot de passe.</p><a href="${link}">Activer HELPEO sur cet appareil</a></main></body></html>\n`, { mode: 0o644 });
+<body><main><h1>HELP<span>EO</span></h1><small>Besoin d’aide&#8239;? On est là</small><p>Lien à usage unique, valable ${hours} h : il ouvre HELPEO et te fait choisir ton mot de passe.</p><a href="${link}">Activer HELPEO sur cet appareil</a></main></body></html>\n`, { mode: 0o644 });
     }
     console.log(`Lien d’activation créé, valable ${hours} h${html ? ` : ${html}` : ''}${secret ? ` (copie privée : ${secret})` : ''}.`);
   } else if (args[0] === 'status') {

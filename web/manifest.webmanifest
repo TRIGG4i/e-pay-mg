@@ -2,7 +2,7 @@
   "id": "./",
   "name": "HELPEO",
   "short_name": "HELPEO",
-  "description": "On vous aide à régler ça. HELPEO, un service de PREST OFFICE SARL.",
+  "description": "Besoin d’aide ? On est là. HELPEO, un service de PREST OFFICE SARL.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -16,25 +16,25 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "assets/helpeo-icon-192.png",
+      "src": "assets/helpeo-icon-192-v2.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/helpeo-icon-512.png",
+      "src": "assets/helpeo-icon-512-v2.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/helpeo-icon-maskable-512.png",
+      "src": "assets/helpeo-icon-maskable-512-v2.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "assets/helpeo-mark.svg",
+      "src": "assets/helpeo-mark-v2.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

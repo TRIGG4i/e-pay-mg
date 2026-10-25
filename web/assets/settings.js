@@ -59,9 +59,9 @@
   ];
 
   const readStored = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); return v && typeof v === 'object' && !Array.isArray(v) ? v : null; } catch { return null; } };
-  // Anciennes valeurs d'origine (E-Pay MG) : remplacées par celles de HELPEO tant qu'elles n'ont pas été modifiées.
+  // Anciennes valeurs d'origine (E-Pay MG, premier slogan HELPEO) : remplacées par celles de HELPEO tant qu'elles n'ont pas été modifiées.
   const LEGACY = {
-    company: { name: ['E-Pay MG'], slogan: ['Paiements en devise'] },
+    company: { name: ['E-Pay MG'], slogan: ['Paiements en devise', 'On vous aide à régler ça'] },
     docs: { quotePrefix: ['EP'], quoteNote: ['Le total correspond au montant converti augmenté des frais de service et de traitement applicables.'] }
   };
   // Seules les clés connues sont reprises, au bon type ; une clé absente garde sa valeur d'origine.
@@ -106,7 +106,7 @@
     };
     DEFAULT_DEBIT_MODE = k.debitMode;
     MANUAL_BASE.EUR = s.rates.eur; MANUAL_BASE.USD = s.rates.usd; MANUAL_RECEIVE.EUR = s.rates.eurIn; MANUAL_RECEIVE.USD = s.rates.usdIn;
-    el('brandName').textContent = c.name;
+    el('brandName').innerHTML = brandHTML(c.name);
   }
   // Calcul, devis et listes redessinés avec les nouvelles valeurs.
   function refreshViews() {

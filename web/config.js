@@ -1,5 +1,5 @@
 (() => {
-  const BUILD = '20261025-helpeo3';
+  const BUILD = '20261025-helpeo4';
   const KEY = 'epayRuntimeBuild';
   // En local (tests), l'app parle au serveur qui la sert ; en ligne, au serveur HELPEO du VPS.
   const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);

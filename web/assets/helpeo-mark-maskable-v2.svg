@@ -5,6 +5,8 @@
     </linearGradient>
   </defs>
   <rect x="0.00" y="0.00" width="512.00" height="512.00" rx="0.00" fill="url(#hpTile)"/>
-  <path d="M182.08,158.56L182.08,353.44M329.92,158.56L329.92,353.44" fill="none" stroke="#FFFFFF" stroke-width="50.40" stroke-linecap="round"/>
-  <path d="M182.08,227.44Q256.00,334.96 329.92,227.44" fill="none" stroke="#FF7A50" stroke-width="50.40" stroke-linecap="round"/>
+  <circle cx="182.08" cy="166.96" r="30.24" fill="#FFFFFF"/>
+  <circle cx="329.92" cy="166.96" r="30.24" fill="#FFFFFF"/>
+  <path d="M182.08,247.60L182.08,353.44M329.92,247.60L329.92,353.44" fill="none" stroke="#FFFFFF" stroke-width="50.40" stroke-linecap="round"/>
+  <path d="M182.08,247.60Q256.00,368.56 329.92,247.60" fill="none" stroke="#FF7A50" stroke-width="50.40" stroke-linecap="round"/>
 </svg>

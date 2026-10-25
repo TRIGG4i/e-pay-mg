@@ -3,10 +3,10 @@
 const P = window.EpayPricing;
 
 // Émetteur, documents et tarifs : valeurs d'origine, remplacées par Réglages (settings.js).
-const OFFICE = { name: 'HELPEO', slogan: 'On vous aide à régler ça', legal: 'HELPEO, un service de PREST OFFICE SARL', phone: '', email: '', address: '', nif: '', stat: '', mvola: '', orange: '', airtel: '', bankHolder: '', bankName: '', rib: '' };
+const OFFICE = { name: 'HELPEO', slogan: 'Besoin d’aide\u202f? On est là', legal: 'HELPEO, un service de PREST OFFICE SARL', phone: '', email: '', address: '', nif: '', stat: '', mvola: '', orange: '', airtel: '', bankHolder: '', bankName: '', rib: '' };
 const DOCS = { prefixes: { quote: 'DV', operation: 'OP' }, quoteValidityDays: 0, quoteNote: 'Montant tout compris, à régler en totalité avant l’exécution.' };
-// Monogramme HELPEO en ligne (aperçu et impression) : même dessin que assets/helpeo-mark.svg, à plat.
-const BRAND_MARK = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14.75" fill="#0F7560"/><path d="M21 17.5V46.5M43 17.5V46.5" stroke="#fff" stroke-width="7.5" stroke-linecap="round"/><path d="M21 27.75Q32 43.75 43 27.75" fill="none" stroke="#FF7A50" stroke-width="7.5" stroke-linecap="round"/></svg>';
+// Monogramme HELPEO en ligne (aperçu et impression) : même dessin que assets/helpeo-mark-v2.svg, à plat.
+const BRAND_MARK = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14.75" fill="#0F7560"/><circle cx="21" cy="18.75" r="4.5" fill="#fff"/><circle cx="43" cy="18.75" r="4.5" fill="#fff"/><path d="M21 30.75V46.5M43 30.75V46.5" stroke="#fff" stroke-width="7.5" stroke-linecap="round"/><path d="M21 30.75Q32 48.75 43 30.75" fill="none" stroke="#FF7A50" stroke-width="7.5" stroke-linecap="round"/></svg>';
 let TARIFS = { ...P.DEFAULTS, tiers: P.DEFAULTS.tiers.map(t => ({ ...t })) };
 const MANUAL_BASE = { EUR: 0, USD: 0 }, MANUAL_RECEIVE = { EUR: 0, USD: 0 };
 let DEFAULT_DEBIT_MODE = 'foreign';
@@ -23,6 +23,8 @@ const fmtMGA = (v, d = 0) => (Number.isFinite(v) ? `${fmtNumber(v, d)} MGA` : '�
 const fmtCurrency = (v, c, d = 0) => (Number.isFinite(v) ? `${fmtNumber(v, d)} ${c}` : '—');
 const fmtRate = v => (Number.isFinite(v) ? `${fmtNumber(v, 2)} MGA` : '—');
 const escapeHTML = s => String(s ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+// HELPEO s'écrit HELP + EO en corail, comme le logo ; un autre nom saisi dans Réglages reste tel quel.
+const brandHTML = name => { const n = String(name ?? '').trim(); return /^helpeo$/i.test(n) ? `${n.slice(0, 4)}<span class="brand-eo">${n.slice(4)}</span>` : escapeHTML(n); };
 function isoDate(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function displayDate(v) { if (!v) return '—'; const d = new Date(String(v).length === 10 ? `${v}T12:00:00` : v); return Number.isNaN(d.valueOf()) ? '—' : new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d); }
 function addDays(iso, n) { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + (Number(n) || 0)); return isoDate(d); }
@@ -283,7 +285,7 @@ function paymentLines() {
 }
 function officeLine() { return [OFFICE.phone, OFFICE.email].filter(Boolean).join(' · '); }
 function fillPreview(q) {
-  $('previewBrand').textContent = OFFICE.name;
+  $('previewBrand').innerHTML = brandHTML(OFFICE.name);
   $('previewNumber').textContent = q.number;
   $('previewDate').textContent = `${quoteDate(q) !== q.createdAt ? 'Taux du' : 'Émis le'} ${displayDate(quoteDate(q))} · ${validityText(q)}`;
   $('previewClient').textContent = q.client || 'Client non renseigné';
@@ -412,7 +414,7 @@ function whatsappQuote() {
 }
 function printHeader(title, sub) {
   const ids = [OFFICE.nif && `NIF ${OFFICE.nif}`, OFFICE.stat && `STAT ${OFFICE.stat}`].filter(Boolean).join(' · ');
-  return `<header class="print-head"><div class="print-brand">${BRAND_MARK}<div><strong>${escapeHTML(OFFICE.name)}</strong><span>${escapeHTML(OFFICE.slogan)}</span>${OFFICE.address ? `<span>${escapeHTML(OFFICE.address)}</span>` : ''}${officeLine() ? `<span>${escapeHTML(officeLine())}</span>` : ''}${ids ? `<span>${escapeHTML(ids)}</span>` : ''}</div></div><div class="print-title"><h1>${escapeHTML(title)}</h1><p>${escapeHTML(sub)}</p></div></header>`;
+  return `<header class="print-head"><div class="print-brand">${BRAND_MARK}<div><strong>${brandHTML(OFFICE.name)}</strong><span>${escapeHTML(OFFICE.slogan)}</span>${OFFICE.address ? `<span>${escapeHTML(OFFICE.address)}</span>` : ''}${officeLine() ? `<span>${escapeHTML(officeLine())}</span>` : ''}${ids ? `<span>${escapeHTML(ids)}</span>` : ''}</div></div><div class="print-title"><h1>${escapeHTML(title)}</h1><p>${escapeHTML(sub)}</p></div></header>`;
 }
 function printClient(q) {
   return `<section class="print-client"><div class="print-block"><span>Client</span><strong>${escapeHTML(q.client || 'Client non renseigné')}${q.phone ? `<br>${escapeHTML(q.phone)}` : ''}${q.address ? `<br>${escapeHTML(q.address)}` : ''}</strong></div></section>`;
